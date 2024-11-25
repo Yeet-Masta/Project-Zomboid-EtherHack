@@ -2,21 +2,23 @@ package EtherHack;
 
 import EtherHack.utils.Logger;
 
-/**
- * Главный класс EtherHack - точка входа
- */
 public class Main {
-    public static void main(String[] args) {
-        if (args.length != 1) {
-            Logger.print("You must specify one of the '--install' or '--uninstall' flags");
-            return;
-        }
+   public static void main(String[] var0) {
+      if (var0.length != 1) {
+         Logger.print("You must specify one of the '--install' or '--uninstall' flags");
+      } else {
+         GamePatcher var1 = new GamePatcher();
+         switch (var0[0]) {
+            case "--install":
+               var1.patchGame();
+               break;
+            case "--uninstall":
+               var1.restoreFiles();
+               break;
+            default:
+               Logger.print("Unknown flag '" + var0[0] + "'");
+         }
 
-        GamePatcher gamePatcher = new GamePatcher();
-        switch (args[0]) {
-            case "--install" -> gamePatcher.patchGame();
-            case "--uninstall" -> gamePatcher.restoreFiles();
-            default -> Logger.print("Unknown flag " + "'" + args[0] + "'");
-        }
-    }
+      }
+   }
 }

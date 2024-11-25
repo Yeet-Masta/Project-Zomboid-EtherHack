@@ -1,37 +1,34 @@
 package EtherHack.Ether;
 
+import EtherHack.utils.Logger;
+
 public class EtherMain {
+   private static EtherMain instance;
+   public EtherTranslator etherTranslator;
+   public EtherCredits etherCredits;
+   public EtherLuaManager etherLuaManager;
+   public EtherAPI etherAPI;
 
-    private static EtherMain instance;
-    public EtherHackCredits etherHackCredits;
-    public EtherGUI etherGUI;
-    public EtherAPI etherAPI;
-    public EtherInitializer etherInitializer;
+   private EtherMain() {
+   }
 
-    /**
-     * Предотвращение создание экземпляров из вне
-     */
-    private EtherMain() {
-    }
+   public void init() {
+      Logger.printLog("Initializing EtherHack...");
+      this.etherTranslator = new EtherTranslator();
+      this.etherTranslator.loadTranslations();
+      this.etherCredits = new EtherCredits();
+      this.etherAPI = new EtherAPI();
+      this.etherAPI.loadAPI();
+      this.etherLuaManager = new EtherLuaManager();
+      this.etherLuaManager.loadLua();
+      Logger.printLog("Initialization EtherHack was completed!");
+   }
 
-    /**
-     * Реализация инициализации EtherHack
-     */
-    public void initEther(){
-        etherHackCredits = new EtherHackCredits();
-        etherInitializer = new EtherInitializer();
-        etherAPI = new EtherAPI();
-        etherGUI = new EtherGUI();
-    }
+   public static EtherMain getInstance() {
+      if (instance == null) {
+         instance = new EtherMain();
+      }
 
-    /**
-     * Получение текущего экземпляра синглтона EtherHack
-     * @return Экземпляр EtherMain
-     */
-    public static EtherMain getInstance() {
-        if (instance == null) {
-            instance = new EtherMain();
-        }
-        return instance;
-    }
+      return instance;
+   }
 }
