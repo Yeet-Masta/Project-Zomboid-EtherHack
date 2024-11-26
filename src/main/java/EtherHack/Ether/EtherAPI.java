@@ -1,5 +1,6 @@
 package EtherHack.Ether;
 
+import EtherHack.GameClientWrapper;
 import EtherHack.annotations.LuaEvents;
 import EtherHack.annotations.SubscribeLuaEvent;
 import EtherHack.utils.ColorUtils;
@@ -20,6 +21,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 
 import se.krka.kahlua.converter.KahluaConverterManager;
@@ -40,6 +42,7 @@ import zombie.iso.IsoWorld;
 import zombie.network.GameClient;
 import zombie.network.GameServer;
 import zombie.network.ServerOptions;
+import zombie.network.ZomboidNetData;
 import zombie.ui.UIFont;
 import zombie.vehicles.BaseVehicle;
 
@@ -384,8 +387,10 @@ public class EtherAPI {
          if (GameClient.instance != null && GameClient.connection != null) {
             // Set connection as validated
             setFieldValue(GameClient.connection, "validated", true);
-            // Clear any pending network data
-            GameClient.instance.incomingNetData.clear();
+
+            // Use wrapper to clear network data
+            GameClientWrapper wrapper = GameClientWrapper.get();
+            wrapper.clearIncomingNetData();
          }
       } catch (Exception e) {
          Logger.printLog("Error initializing protected state: " + e.getMessage());
@@ -396,7 +401,12 @@ public class EtherAPI {
       try {
          // Clear any queued network events
          if (GameClient.instance != null) {
-            GameClient.instance.incomingNetData();
+            GameClientWrapper wrapper = GameClientWrapper.get();
+            // Get and clear the queue
+            ConcurrentLinkedQueue<ZomboidNetData> netData = wrapper.getIncomingNetData();
+            if (netData != null) {
+               netData.clear();
+            }
          }
       } catch (Exception e) {
          Logger.printLog("Error clearing handshakes: " + e.getMessage());

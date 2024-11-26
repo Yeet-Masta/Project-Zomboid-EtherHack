@@ -1,10 +1,12 @@
 package EtherHack;
 
+import EtherHack.utils.Logger;
 import zombie.network.GameClient;
 import zombie.network.ZomboidNetData;
 import zombie.characters.IsoPlayer;
 import se.krka.kahlua.vm.KahluaTable;
 import java.nio.ByteBuffer;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * Wrapper for GameClient that exposes private methods publicly for compilation
@@ -66,8 +68,41 @@ public class GameClientWrapper {
         return method;
     }
 
+    public ConcurrentLinkedQueue<ZomboidNetData> getIncomingNetData() {
+        try {
+            if (GameClient.instance != null) {
+                // Try to use reflection first if method not exposed
+                java.lang.reflect.Method method = GameClient.class
+                        .getDeclaredMethod("getIncomingNetData");
+                method.setAccessible(true);
+                return (ConcurrentLinkedQueue<ZomboidNetData>) method
+                        .invoke(GameClient.instance);
+            }
+        } catch (Exception e) {
+            // Fallback to direct field access if method not available
+            try {
+                java.lang.reflect.Field field = GameClient.class
+                        .getDeclaredField("incomingNetData");
+                field.setAccessible(true);
+                return (ConcurrentLinkedQueue<ZomboidNetData>) field
+                        .get(GameClient.instance);
+            } catch (Exception ex) {
+                Logger.printLog("Failed to access incomingNetData: " + ex.getMessage());
+            }
+        }
+        return new ConcurrentLinkedQueue<>(); // Return empty queue as fallback
+    }
+
+    public void clearIncomingNetData() {
+        ConcurrentLinkedQueue<ZomboidNetData> queue = getIncomingNetData();
+        if (queue != null) {
+            queue.clear();
+        }
+    }
+
     // Static helper to get instance
     public static GameClientWrapper get() {
         return new GameClientWrapper(GameClient.instance);
     }
 }
+

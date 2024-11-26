@@ -3,8 +3,12 @@ package EtherHack;
 import EtherHack.utils.Patch;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.*;
+
+import java.util.ArrayList;
 import java.util.function.Consumer;
 import EtherHack.utils.Logger;
+
+import static org.objectweb.asm.Opcodes.*;
 
 public class GameClientPatcher {
 
@@ -30,6 +34,7 @@ public class GameClientPatcher {
                 {"disconnect", "false"},
                 {"loadConfig", "false"},
                 {"receivePacketCounts", "true"}  // static method
+                //{"incomingNetData", "false"}
         };
 
         for (String[] methodInfo : methodsToPatch) {
@@ -74,10 +79,57 @@ public class GameClientPatcher {
     /**
      * Call this to apply all patches
      */
+    // In GameClientPatcher.java
     public static void applyPatches() {
-        Logger.printLog("Starting GameClient patching process...");
-        patch();
-        // Patch.saveModifiedClasses() will be called by the main patcher
-        Logger.printLog("GameClient patching completed.");
+        try {
+            Logger.printLog("Patching GameClient methods...");
+
+            // Add these specific patches for incomingNetData
+            Patch.injectIntoClass("zombie/network/GameClient", "incomingNetData", false, (MethodNode methodNode) -> {
+                // Make the field public
+                methodNode.access &= ~Opcodes.ACC_PRIVATE;
+                methodNode.access &= ~Opcodes.ACC_PROTECTED;
+                methodNode.access |= Opcodes.ACC_PUBLIC;
+
+                // Add @Injected annotation
+                if (methodNode.visibleAnnotations == null) {
+                    methodNode.visibleAnnotations = new ArrayList<>();
+                }
+                methodNode.visibleAnnotations.add(new AnnotationNode("LEtherHack/annotations/Injected;"));
+            });
+
+            // Create getter method if it doesn't exist
+            injectGetterMethod("zombie/network/GameClient", "getIncomingNetData",
+                    "()Ljava/util/concurrent/ConcurrentLinkedQueue;",
+                    (MethodNode methodNode) -> {
+                        InsnList instructions = new InsnList();
+                        instructions.add(new VarInsnNode(ALOAD, 0));
+                        instructions.add(new FieldInsnNode(GETFIELD, "zombie/network/GameClient",
+                                "incomingNetData", "Ljava/util/concurrent/ConcurrentLinkedQueue;"));
+                        instructions.add(new InsnNode(ARETURN));
+                        methodNode.instructions = instructions;
+                    });
+
+            // Make sure to patch all other required methods
+            //patchMethod("gameLoadingDealWithNetData", true);
+            //patchMethod("mainLoopDealWithNetData", true);
+            patchMethod("incomingNetData", false);
+            // ... other method patches
+        } catch (Exception e) {
+            Logger.printLog("Failed to patch GameClient: " + e.getMessage());
+        }
+    }
+
+    private static void injectGetterMethod(String className, String methodName,
+                                           String descriptor, Consumer<MethodNode> injector) {
+        try {
+            Patch.injectIntoClass(className, methodName, false, (MethodNode methodNode) -> {
+                methodNode.access = Opcodes.ACC_PUBLIC;
+                methodNode.desc = descriptor;
+                injector.accept(methodNode);
+            });
+        } catch (Exception e) {
+            Logger.printLog("Failed to inject getter method: " + e.getMessage());
+        }
     }
 }

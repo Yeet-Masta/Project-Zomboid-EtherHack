@@ -9,8 +9,10 @@ import zombie.network.packets.PlayerPacket;
 import zombie.network.PacketTypes;
 import zombie.network.ZomboidNetData;
 
+import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.util.*;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * EventProtector - Prevents anti-cheat from monitoring login/logout events
@@ -104,27 +106,22 @@ public class EventProtector {
 
     public void installProtection() {
         try {
-            // Clear incoming network data queue
+            // Use the wrapper to clear incoming data
+            GameClientWrapper wrapper = GameClientWrapper.get();
+
+            // Instead of directly accessing incomingNetData, use the wrapper
             if (GameClient.instance != null) {
-                GameClient.instance.incomingNetData.clear();
-                // Reset connection flags
-                setFieldValue(GameClient.instance, "bCoopClientDisconnect", false);
-                setFieldValue(GameClient.instance, "bConnected", true);
-                setFieldValue(GameClient.instance, "bDone", false);
+                wrapper.mainLoopDealWithNetData(new ZomboidNetData());
             }
 
-            // Override player state
             IsoPlayer player = IsoPlayer.getInstance();
             if (player != null) {
                 player.setOnlineID(generateSafeID());
-                player.setConnected(true);
-
-                // Send a fake player update to maintain connection
-                sendFakePlayerUpdate(player);
+                // Use reflection to set connected state since it's private
+                setFieldValue(player, "connected", true);
             }
-
         } catch (Exception e) {
-            Logger.printLog("Failed to install event protection: " + e.getMessage());
+            Logger.printLog("Failed to install protection: " + e.getMessage());
         }
     }
 
@@ -173,16 +170,20 @@ public class EventProtector {
     // Modified method to hook into network packets
     public static void filterIncomingPackets() {
         try {
-            if (GameClient.instance != null && !GameClient.instance.incomingNetData.isEmpty()) {
-                // Filter out handshake and player info packets
-                GameClient.instance.incomingNetData.removeIf(packet -> {
+            GameClientWrapper wrapper = GameClientWrapper.get();
+            if (GameClient.instance != null) {
+                // Fix getIncomingPackets to getIncomingNetData
+                ConcurrentLinkedQueue<ZomboidNetData> netData = wrapper.getIncomingNetData();
+
+                // Use proper type comparison for PacketTypes
+                netData.removeIf(packet -> {
                     if (packet == null) return true;
-                    byte packetType = packet.type;
-                    // Filter specific packet types that might be used for detection
-                    return packetType == PacketTypes.PacketType.ClientConnect.getId() ||
-                            packetType == PacketTypes.PacketType.PlayerConnect.getId() ||
-                            packetType == PacketTypes.PacketType.Login.getId() ||
-                            packetType == PacketTypes.PacketType.PlayerUpdateReliable.getId();
+
+                    short packetId = packet.type.getId();
+                    return packetId == PacketTypes.PacketType.Validate.getId() ||
+                            packetId == PacketTypes.PacketType.PlayerConnect.getId() ||
+                            packetId == PacketTypes.PacketType.Login.getId() ||
+                            packetId == PacketTypes.PacketType.PlayerUpdateReliable.getId();
                 });
             }
         } catch (Exception e) {
@@ -193,10 +194,22 @@ public class EventProtector {
     // Call this method periodically to maintain protection
     public void maintain() {
         filterIncomingPackets();
-        // Send periodic updates to maintain connection if needed
+
+        // Use wrapper to handle player updates
         IsoPlayer player = IsoPlayer.getInstance();
-        if (player != null && player.isConnected()) {
-            sendFakePlayerUpdate(player);
+        if (player != null) {
+            try {
+                // Use reflection to check connection state
+                Field connectedField = player.getClass().getDeclaredField("connected");
+                connectedField.setAccessible(true);
+                boolean connected = (boolean)connectedField.get(player);
+
+                if (connected) {
+                    sendFakePlayerUpdate(player);
+                }
+            } catch (Exception e) {
+                Logger.printLog("Error maintaining connection: " + e.getMessage());
+            }
         }
     }
 }
