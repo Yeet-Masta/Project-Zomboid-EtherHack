@@ -14,12 +14,18 @@ import EtherHack.utils.ZombieUtils;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 
+
+import se.krka.kahlua.converter.KahluaConverterManager;
+import se.krka.kahlua.j2se.J2SEPlatform;
+import se.krka.kahlua.vm.KahluaTable;
+import se.krka.kahlua.vm.Platform;
 import zombie.SandboxOptions;
 import zombie.Lua.LuaManager;
 import zombie.characterTextures.BloodBodyPartType;
@@ -37,11 +43,13 @@ import zombie.network.ServerOptions;
 import zombie.ui.UIFont;
 import zombie.vehicles.BaseVehicle;
 
+import static zombie.Lua.LuaManager.env;
+
 public class EtherAPI {
    private Exposer exposer;
-   private final EtherLuaMethods etherLuaMethods = new EtherLuaMethods();
-   // Using ConcurrentHashMap to prevent concurrent modification exceptions
+   private final SafeEtherLuaMethods etherLuaMethods = new SafeEtherLuaMethods();
    final ConcurrentHashMap<String, Texture> textureCache = new ConcurrentHashMap<>();
+   private final SafeAPI safeAPI = SafeAPI.getInstance();
    private final ConcurrentHashMap<String, float[]> originalWeaponStats = new ConcurrentHashMap<>();
    public Color mainUIAccentColor;
    public Color vehiclesUIColor;
@@ -349,19 +357,64 @@ public class EtherAPI {
       EventSubscriber.register(this);
    }
 
-   @LuaEvents({@SubscribeLuaEvent(
-   eventName = "OnResetLua"
-), @SubscribeLuaEvent(
-   eventName = "OnMainMenuEnter"
-)})
+   @LuaEvents({
+           @SubscribeLuaEvent(eventName = "OnResetLua"),
+           @SubscribeLuaEvent(eventName = "OnMainMenuEnter")
+   })
    public void loadAPI() {
-      Logger.printLog("Loading EtherAPI...");
+      Logger.printLog("Loading protected EtherAPI...");
       if (this.exposer != null) {
          this.exposer.destroy();
       }
 
-      this.exposer = new Exposer(LuaManager.converterManager, LuaManager.platform, LuaManager.env);
+      this.exposer = new SafeExposer(LuaManager.converterManager, LuaManager.platform, env);
       this.exposer.exposeAPI(this.etherLuaMethods);
+   }
+
+   // Inner class for safe method exposure
+   private class SafeExposer extends Exposer {
+      public SafeExposer(KahluaConverterManager m, Platform p, KahluaTable e) {
+         super(m, (J2SEPlatform) p, e);
+      }
+
+      // Override the exposeGlobalFunctions method instead
+      public void exposeAPI(EtherLuaMethods methods) {
+         for (Method method : methods.getClass().getMethods()) {
+            if (method.isAnnotationPresent(se.krka.kahlua.integration.annotations.LuaMethod.class)) {
+               String originalName = method.getName();
+               String safeName = safeAPI.getSafeName(originalName);
+               exposeGlobalFunction(method, safeName);
+            }
+         }
+      }
+
+      private void exposeGlobalFunction(Method method, String name) {
+         exposeMethod(method.getDeclaringClass(), method, name, env);
+      }
+   }
+
+   // Wrapper for Lua methods with protection
+   public class SafeEtherLuaMethods extends EtherLuaMethods {
+      public Object callMethod(String name, Object... args) {
+         String originalName = safeAPI.getOriginalName(name);
+         if (originalName != null) {
+            try {
+               Method method = this.getClass().getMethod(originalName, getParameterTypes(args));
+               return method.invoke(this, args);
+            } catch (Exception e) {
+               Logger.printLog("Error calling method " + originalName + ": " + e.getMessage());
+            }
+         }
+         return null;
+      }
+
+      private Class<?>[] getParameterTypes(Object[] args) {
+         Class<?>[] types = new Class<?>[args.length];
+         for (int i = 0; i < args.length; i++) {
+            types[i] = args[i].getClass();
+         }
+         return types;
+      }
    }
 
    public void resetWeaponsStats() {
