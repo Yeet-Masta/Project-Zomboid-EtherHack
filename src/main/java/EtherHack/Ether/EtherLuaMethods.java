@@ -8,10 +8,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 import se.krka.kahlua.integration.annotations.LuaMethod;
@@ -29,7 +26,10 @@ import zombie.network.packets.PlayerPacket;
 import zombie.scripting.ScriptManager;
 import zombie.scripting.objects.Recipe;
 
-public final class EtherLuaMethods {
+public class EtherLuaMethods {
+   private static EtherLuaMethods instance = null;
+   private final SafeAPI safeAPI = SafeAPI.getInstance();
+   private static final Map<String, Object> methodCache = new HashMap<>();
    @LuaMethod(
       name = "getZombieUIColor",
       global = true
@@ -146,101 +146,100 @@ public final class EtherLuaMethods {
       EtherMain.getInstance().etherAPI.saveConfig(var0);
    }
 
-   @LuaMethod(
-      name = "safePlayerTeleport",
-      global = true
-   )
-   public static void safePlayerTeleport(int var0, int var1) {
-      EtherMain.getInstance().etherAPI.isPlayerInSafeTeleported = true;
-      IsoPlayer var2 = IsoPlayer.getInstance();
-      float var3 = var2.z;
-      float var4 = (float)var0 - var2.x;
-      float var5 = (float)var1 - var2.y;
-      float var6 = var3 - var2.z;
-      float var7 = Math.abs(var4);
-      float var8 = Math.abs(var5);
-      float var9 = Math.abs(var6);
+   @LuaMethod(name = "safePlayerTeleport", global = true)
+   public static void safePlayerTeleport(int x, int y) {
+      String key = SafeAPI.getInstance().generateVerificationKey();
+      try {
+         EtherMain.getInstance().etherAPI.isPlayerInSafeTeleported = true;
+         IsoPlayer player = IsoPlayer.getInstance();
 
-      while(var7 > 0.0F || var8 > 0.0F || var9 > 0.0F) {
-         float var10 = 1.0F;
-         float var11 = Math.min(Math.min(var7, var10), 1.0F);
-         float var12 = Math.min(Math.min(var8, var10), 1.0F);
-         float var13 = Math.min(Math.min(var9, var10), 1.0F);
-         var7 -= var11;
-         var8 -= var12;
-         var9 -= var13;
-         if (var4 < 0.0F) {
-            var11 = -var11;
+         float z = player.z;
+         float dx = x - player.x;
+         float dy = y - player.y;
+         float dz = z - player.z;
+
+         float absDx = Math.abs(dx);
+         float absDy = Math.abs(dy);
+         float absDz = Math.abs(dz);
+
+         while (absDx > 0 || absDy > 0 || absDz > 0) {
+            float step = 1.0f;
+            float stepX = Math.min(Math.min(absDx, step), 1.0f);
+            float stepY = Math.min(Math.min(absDy, step), 1.0f);
+            float stepZ = Math.min(Math.min(absDz, step), 1.0f);
+
+            absDx -= stepX;
+            absDy -= stepY;
+            absDz -= stepZ;
+
+            if (dx < 0) stepX = -stepX;
+            if (dy < 0) stepY = -stepY;
+            if (dz < 0) stepZ = -stepZ;
+
+            player.setX(player.x + stepX);
+            player.setY(player.y + stepY);
+            player.setZ(player.z + stepZ);
+            player.setLx(player.getX());
+            player.setLy(player.getY());
+            player.setLz(player.getZ());
+
+            GameClient.instance.sendPlayer(player);
+
+            if (GameClient.connection != null &&
+                    PlayerPacket.l_send.playerPacket.set(player)) {
+               ByteBufferWriter writer = GameClient.connection.startPacket();
+               PacketTypes.PacketType.PlayerUpdateReliable.doPacket(writer);
+               PlayerPacket.l_send.playerPacket.write(writer);
+               PacketTypes.PacketType.PlayerUpdateReliable.send(GameClient.connection);
+            }
          }
 
-         if (var5 < 0.0F) {
-            var12 = -var12;
-         }
-
-         if (var6 < 0.0F) {
-            var13 = -var13;
-         }
-
-         var2.setX(var2.x + var11);
-         var2.setY(var2.y + var12);
-         var2.setZ(var2.z + var13);
-         var2.setLx(var2.getX());
-         var2.setLy(var2.getY());
-         var2.setLz(var2.getZ());
-         GameClient.instance.sendPlayer(var2);
-         if (GameClient.connection != null && PlayerPacket.l_send.playerPacket.set(var2)) {
-            ByteBufferWriter var14 = GameClient.connection.startPacket();
-            PacketTypes.PacketType.PlayerUpdateReliable.doPacket(var14);
-            PlayerPacket.l_send.playerPacket.write(var14);
-            PacketTypes.PacketType.PlayerUpdateReliable.send(GameClient.connection);
-         }
+         EtherMain.getInstance().etherAPI.isPlayerInSafeTeleported = false;
+      } catch (Exception e) {
+         Logger.printLog("Error in safePlayerTeleport: " + e.getMessage());
+         EtherMain.getInstance().etherAPI.isPlayerInSafeTeleported = false;
       }
-
-      EtherMain.getInstance().etherAPI.isPlayerInSafeTeleported = false;
    }
 
-   @LuaMethod(
-      name = "isPlayerInSafeTeleported",
-      global = true
-   )
+   @LuaMethod(name = "isPlayerInSafeTeleported", global = true)
    public static boolean isPlayerInSafeTeleported() {
       return EtherMain.getInstance().etherAPI.isPlayerInSafeTeleported;
    }
 
-   @LuaMethod(
-      name = "learnAllRecipes",
-      global = true
-   )
+   // Recipe and item manipulation
+   @LuaMethod(name = "learnAllRecipes", global = true)
    public static void learnAllRecipes() {
-      IsoPlayer var0 = IsoPlayer.getInstance();
-      if (var0 != null) {
-         ArrayList var1 = ScriptManager.instance.getAllRecipes();
-         if (var1 != null) {
-            Iterator var2 = var1.iterator();
-
-            while(var2.hasNext()) {
-               Recipe var3 = (Recipe)var2.next();
-               if (var3.getOriginalname() != null) {
-                  var0.learnRecipe(var3.getOriginalname());
+      String key = SafeAPI.getInstance().generateVerificationKey();
+      try {
+         IsoPlayer player = IsoPlayer.getInstance();
+         if (player != null) {
+            ArrayList<Recipe> recipes = ScriptManager.instance.getAllRecipes();
+            if (recipes != null) {
+               for (Recipe recipe : recipes) {
+                  if (recipe.getOriginalname() != null) {
+                     player.learnRecipe(recipe.getOriginalname());
+                  }
                }
             }
          }
+      } catch (Exception e) {
+         Logger.printLog("Error in learnAllRecipes: " + e.getMessage());
       }
-
    }
 
-   @LuaMethod(
-      name = "giveItem",
-      global = true
-   )
-   public static void giveItem(InventoryItem var0, int var1) {
-      IsoPlayer var2 = IsoPlayer.getInstance();
-      if (var2 != null) {
-         for(int var3 = 0; var3 < var1; ++var3) {
-            var2.getInventory().AddItem(var0);
+   @LuaMethod(name = "giveItem", global = true)
+   public static void giveItem(InventoryItem item, int count) {
+      String key = SafeAPI.getInstance().generateVerificationKey();
+      try {
+         IsoPlayer player = IsoPlayer.getInstance();
+         if (player != null) {
+            for (int i = 0; i < count; i++) {
+               player.getInventory().AddItem(item);
+            }
          }
+      } catch (Exception e) {
+         Logger.printLog("Error in giveItem: " + e.getMessage());
       }
-
    }
 
    @LuaMethod(
@@ -1025,34 +1024,22 @@ public final class EtherLuaMethods {
       return EtherMain.getInstance().etherAPI.isDisableUnhappynessLevel;
    }
 
-   @LuaMethod(
-      name = "toggleDisableWetness",
-      global = true
-   )
-   public static void toggleDisableWetness(boolean var0) {
-      EtherMain.getInstance().etherAPI.isDisableWetness = var0;
+   @LuaMethod(name = "toggleDisableWetness", global = true)
+   public static void toggleDisableWetness(boolean value) {
+      EtherMain.getInstance().etherAPI.isDisableWetness = value;
    }
 
-   @LuaMethod(
-      name = "isDisableWetness",
-      global = true
-   )
+   @LuaMethod(name = "isDisableWetness", global = true)
    public static boolean isDisableWetness() {
       return EtherMain.getInstance().etherAPI.isDisableWetness;
    }
 
-   @LuaMethod(
-      name = "toggleDisableInfectionLevel",
-      global = true
-   )
-   public static void toggleDisableInfectionLevel(boolean var0) {
-      EtherMain.getInstance().etherAPI.isDisableInfectionLevel = var0;
+   @LuaMethod(name = "toggleDisableInfectionLevel", global = true)
+   public static void toggleDisableInfectionLevel(boolean value) {
+      EtherMain.getInstance().etherAPI.isDisableInfectionLevel = value;
    }
 
-   @LuaMethod(
-      name = "isDisableInfectionLevel",
-      global = true
-   )
+   @LuaMethod(name = "isDisableInfectionLevel", global = true)
    public static boolean isDisableInfectionLevel() {
       return EtherMain.getInstance().etherAPI.isDisableInfectionLevel;
    }
@@ -1065,120 +1052,99 @@ public final class EtherLuaMethods {
       EtherMain.getInstance().etherAPI.isDisableFakeInfectionLevel = var0;
    }
 
-   @LuaMethod(
-      name = "isDisableFakeInfectionLevel",
-      global = true
-   )
+   @LuaMethod(name = "isDisableFakeInfectionLevel", global = true)
    public static boolean isDisableFakeInfectionLevel() {
       return EtherMain.getInstance().etherAPI.isDisableFakeInfectionLevel;
    }
 
-   @LuaMethod(
-      name = "toggleOptimalCalories",
-      global = true
-   )
-   public static void toggleOptimalCalories(boolean var0) {
-      EtherMain.getInstance().etherAPI.isOptimalCalories = var0;
+   @LuaMethod(name = "toggleOptimalCalories", global = true)
+   public static void toggleOptimalCalories(boolean value) {
+      EtherMain.getInstance().etherAPI.isOptimalCalories = value;
    }
 
-   @LuaMethod(
-      name = "isOptimalCalories",
-      global = true
-   )
+   @LuaMethod(name = "isOptimalCalories", global = true)
    public static boolean isOptimalCalories() {
       return EtherMain.getInstance().etherAPI.isOptimalCalories;
    }
 
-   @LuaMethod(
-      name = "toggleOptimalWeight",
-      global = true
-   )
-   public static void toggleOptimalWeight(boolean var0) {
-      EtherMain.getInstance().etherAPI.isOptimalWeight = var0;
+   @LuaMethod(name = "toggleOptimalWeight", global = true)
+   public static void toggleOptimalWeight(boolean value) {
+      EtherMain.getInstance().etherAPI.isOptimalWeight = value;
    }
 
-   @LuaMethod(
-      name = "isOptimalWeight",
-      global = true
-   )
+   @LuaMethod(name = "isOptimalWeight", global = true)
    public static boolean isOptimalWeight() {
       return EtherMain.getInstance().etherAPI.isOptimalWeight;
    }
 
-   @LuaMethod(
-      name = "toggleEnableUnlimitedCarry",
-      global = true
-   )
-   public static void toggleEnableUnlimitedCarry(boolean var0) {
-      EtherMain.getInstance().etherAPI.isUnlimitedCarry = var0;
+   @LuaMethod(name = "toggleEnableUnlimitedCarry", global = true)
+   public static void toggleEnableUnlimitedCarry(boolean value) {
+      EtherMain.getInstance().etherAPI.isUnlimitedCarry = value;
    }
 
-   @LuaMethod(
-      name = "isEnableUnlimitedCarry",
-      global = true
-   )
+   @LuaMethod(name = "isEnableUnlimitedCarry", global = true)
    public static boolean isEnableUnlimitedCarry() {
       return EtherMain.getInstance().etherAPI.isUnlimitedCarry;
    }
 
-   @LuaMethod(
-      name = "getAntiCheat12Status",
-      global = true
-   )
+   @LuaMethod(name = "getAntiCheat12Status", global = true)
    public static boolean getAntiCheat12Status() {
-      return ServerOptions.instance.getBoolean("AntiCheatProtectionType12");
+      String verificationKey = SafeAPI.getInstance().generateVerificationKey();
+      methodCache.put(verificationKey, ServerOptions.instance.getBoolean("AntiCheatProtectionType12"));
+      return (Boolean) methodCache.remove(verificationKey);
    }
 
-   @LuaMethod(
-      name = "getAntiCheat8Status",
-      global = true
-   )
+   @LuaMethod(name = "getAntiCheat8Status", global = true)
    public static boolean getAntiCheat8Status() {
-      return ServerOptions.instance.getBoolean("AntiCheatProtectionType8");
+      // Add method verification
+      String verificationKey = SafeAPI.getInstance().generateVerificationKey();
+      methodCache.put(verificationKey, ServerOptions.instance.getBoolean("AntiCheatProtectionType8"));
+      return (Boolean) methodCache.remove(verificationKey);
    }
 
-   @LuaMethod(
-      name = "requireExtra",
-      global = true
-   )
-   public static void requireExtra(String var0) {
-      String var1 = var0.endsWith(".lua") ? var0 : var0 + ".lua";
-      if (!EtherMain.getInstance().etherLuaManager.luaFilesList.contains(var1)) {
-         EtherMain.getInstance().etherLuaManager.luaFilesList.add(var1);
-      }
-
-      Path var2 = Paths.get(var1);
-      String var3 = var2.getFileName().toString();
-      var3 = var3.substring(0, var3.lastIndexOf("."));
-      EtherLuaCompiler.getInstance().addWordToBlacklistLuaCompiler(var3);
-      EtherLuaCompiler.getInstance().addPathToWhiteListLuaCompiler(var1);
-      LuaManager.RunLua(var1);
-   }
-
-   @LuaMethod(
-      name = "getExtraTexture",
-      global = true
-   )
-   public static Texture getExtraTexture(String var0) {
-      if (!var0.endsWith(".png")) {
-         Logger.printLog("Incorrect path to the image file. Required .png");
-         return null;
-      } else {
-         ConcurrentHashMap<String, Texture> var1 = EtherMain.getInstance().etherAPI.textureCache;
-         if (var1.containsKey(var0)) {
-            return (Texture)var1.get(var0);
-         } else {
-            try {
-               FileInputStream var2 = new FileInputStream(Paths.get(var0).toFile());
-               BufferedInputStream var3 = new BufferedInputStream(var2);
-               Texture var4 = new Texture(var0, var3, false);
-               var1.put(var0, var4);
-               return var4;
-            } catch (Exception var5) {
-               Logger.printLog("Error when reading the image: " + String.valueOf(var5));
-               return null;
-            }
+   @LuaMethod(name = "requireExtra", global = true)
+   public static void requireExtra(String file) {
+      String key = SafeAPI.getInstance().generateVerificationKey();
+      try {
+         String luaFile = file.endsWith(".lua") ? file : file + ".lua";
+         if (!EtherMain.getInstance().etherLuaManager.luaFilesList.contains(luaFile)) {
+            EtherMain.getInstance().etherLuaManager.luaFilesList.add(luaFile);
          }
+         EtherLuaCompiler.getInstance().addWordToBlacklistLuaCompiler(
+                 luaFile.substring(0, luaFile.lastIndexOf("."))
+         );
+         EtherLuaCompiler.getInstance().addPathToWhiteListLuaCompiler(luaFile);
+         LuaManager.RunLua(luaFile);
+      } catch (Exception e) {
+         Logger.printLog("Error in requireExtra: " + e.getMessage());
+      }
+   }
+
+   @LuaMethod(name = "getExtraTexture", global = true)
+   public static Texture getExtraTexture(String path) {
+      String key = SafeAPI.getInstance().generateVerificationKey();
+      try {
+         if (!path.endsWith(".png")) {
+            Logger.printLog("Incorrect path to the image file. Required .png");
+            return null;
+         }
+
+         ConcurrentHashMap<String, Texture> textureCache =
+                 EtherMain.getInstance().etherAPI.textureCache;
+
+         if (textureCache.containsKey(path)) {
+            return textureCache.get(path);
+         }
+
+         try (FileInputStream fis = new FileInputStream(Paths.get(path).toFile());
+              BufferedInputStream bis = new BufferedInputStream(fis)) {
+            Texture texture = new Texture(path, bis, false);
+            textureCache.put(path, texture);
+            return texture;
+         }
+      } catch (Exception e) {
+         Logger.printLog("Error reading image: " + e.getMessage());
+         return null;
       }
    }
 
@@ -1198,21 +1164,18 @@ public final class EtherLuaMethods {
       return EtherMain.getInstance().etherTranslator.getTranslate(var0);
    }
 
-   @LuaMethod(
-      name = "hackAdminAccess",
-      global = true
-   )
+   @LuaMethod(name = "hackAdminAccess", global = true)
    public static void hackAdminAccess() {
-      Iterator var0 = GameClient.instance.getPlayers().iterator();
-
-      while(var0.hasNext()) {
-         IsoPlayer var1 = (IsoPlayer)var0.next();
-         if (var1.isLocalPlayer()) {
-            var1.accessLevel = "admin";
-            var1.accessLevel.equals("admin");
+      String key = SafeAPI.getInstance().generateVerificationKey();
+      try {
+         for (IsoPlayer player : GameClient.instance.getPlayers()) {
+            if (player.isLocalPlayer()) {
+               player.accessLevel = "admin";
+            }
          }
+      } catch (Exception e) {
+         Logger.printLog("Error in hackAdminAccess: " + e.getMessage());
       }
-
    }
 
    @LuaMethod(
@@ -1225,5 +1188,16 @@ public final class EtherLuaMethods {
 
    private static boolean lambda$getConfigList$0(Path var0) {
       return var0.toString().endsWith(".properties");
+   }
+   protected void cleanMethodCache() {
+      methodCache.clear();
+   }
+
+   // Singleton pattern
+   public static EtherLuaMethods getInstance() {
+      if (instance == null) {
+         instance = new EtherLuaMethods();
+      }
+      return instance;
    }
 }
