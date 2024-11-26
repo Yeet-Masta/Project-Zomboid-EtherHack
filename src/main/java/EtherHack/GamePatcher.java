@@ -147,6 +147,7 @@ public class GamePatcher {
       patchItemContainer();
       patchLuaEventManager();
       patchLuaManager();
+      GameClientPatcher.applyPatches();
 
       Patch.saveModifiedClasses();
       Logger.print("The injections were completed!");

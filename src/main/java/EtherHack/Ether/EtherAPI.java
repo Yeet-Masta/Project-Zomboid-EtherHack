@@ -363,12 +363,54 @@ public class EtherAPI {
    })
    public void loadAPI() {
       Logger.printLog("Loading protected EtherAPI...");
+
+      // Install event protection first
+      EventProtector.getInstance().installProtection();
+
+      // Then continue with normal API loading
       if (this.exposer != null) {
          this.exposer.destroy();
       }
 
-      this.exposer = new SafeExposer(LuaManager.converterManager, LuaManager.platform, env);
+      this.exposer = new SafeExposer(LuaManager.converterManager, LuaManager.platform, LuaManager.env);
       this.exposer.exposeAPI(this.etherLuaMethods);
+
+      // Additional initialization after protection is in place
+      initializeProtectedState();
+   }
+
+   private void initializeProtectedState() {
+      try {
+         if (GameClient.instance != null && GameClient.connection != null) {
+            // Set connection as validated
+            setFieldValue(GameClient.connection, "validated", true);
+            // Clear any pending network data
+            GameClient.instance.incomingNetData.clear();
+         }
+      } catch (Exception e) {
+         Logger.printLog("Error initializing protected state: " + e.getMessage());
+      }
+   }
+
+   private void clearPendingHandshakes() {
+      try {
+         // Clear any queued network events
+         if (GameClient.instance != null) {
+            GameClient.instance.incomingNetData();
+         }
+      } catch (Exception e) {
+         Logger.printLog("Error clearing handshakes: " + e.getMessage());
+      }
+   }
+
+   private static void setFieldValue(Object obj, String fieldName, Object value) {
+      try {
+         java.lang.reflect.Field field = obj.getClass().getDeclaredField(fieldName);
+         field.setAccessible(true);
+         field.set(obj, value);
+      } catch (Exception e) {
+         Logger.printLog("Error setting field value: " + e.getMessage());
+      }
    }
 
    // Inner class for safe method exposure
