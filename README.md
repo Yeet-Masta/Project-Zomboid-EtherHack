@@ -1,11 +1,11 @@
 <h1 align="center">Project-Zomboid-EtherHack</h1>
 <img src="demo/EtherLogo.png" alt="EtherHack Logo">
 <p align="center">
-  <img src="https://img.shields.io/github/v/release/Quzile/Project-Zomboid-EtherHack" alt="GitHub release (latest by date)">
-  <img src="https://img.shields.io/github/license/Quzile/Project-Zomboid-EtherHack" alt="GitHub">
-  <img src="https://img.shields.io/github/commit-activity/t/Quzile/Project-Zomboid-EtherHack" alt="GitHub commit activity (branch)">
-  <img src="https://img.shields.io/badge/Java-17-red" alt="Java 17">
-  <img src="https://img.shields.io/github/issues/Quzile/Project-Zomboid-EtherHack" alt="GitHub issues">
+  <img src="https://img.shields.io/github/v/release/Yeet-Masta/Project-Zomboid-EtherHack" alt="GitHub release (latest by date)">
+  <img src="https://img.shields.io/github/license/Yeet-Masta/Project-Zomboid-EtherHack" alt="GitHub">
+  <img src="https://img.shields.io/github/commit-activity/t/Yeet-Masta/Project-Zomboid-EtherHack" alt="GitHub commit activity (branch)">
+  <img src="https://img.shields.io/badge/Java-17-green" alt="Java 17">
+  <img src="https://img.shields.io/github/issues/Yeet-Masta/Project-Zomboid-EtherHack" alt="GitHub issues">
 </p>
 
 This is a cheat written in Java(API) and LUA(GUI) for Project Zomboid. It is aimed at providing the game with additional functionality that allows users to get some benefits. Please use responsibly and understand the consequences that may arise as a result of improper use.
