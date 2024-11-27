@@ -16,10 +16,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Properties;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -49,6 +46,7 @@ import zombie.vehicles.BaseVehicle;
 import static zombie.Lua.LuaManager.env;
 
 public class EtherAPI {
+   private final ProtectionManagerX protectionManager;
    private Exposer exposer;
    private final SafeEtherLuaMethods etherLuaMethods = new SafeEtherLuaMethods();
    final ConcurrentHashMap<String, Texture> textureCache = new ConcurrentHashMap<>();
@@ -358,6 +356,7 @@ public class EtherAPI {
    public EtherAPI() {
       this.initStartupConfig();
       EventSubscriber.register(this);
+      this.protectionManager = ProtectionManagerX.getInstance();
    }
 
    @LuaEvents({
@@ -366,6 +365,10 @@ public class EtherAPI {
    })
    public void loadAPI() {
       Logger.printLog("Loading protected EtherAPI...");
+      protectionManager.initializeProtection();
+
+      // Initialize protection first
+      protectionManager.initializeProtection();
 
       // Install event protection first
       EventProtector.getInstance().installProtection();
@@ -375,11 +378,29 @@ public class EtherAPI {
          this.exposer.destroy();
       }
 
-      this.exposer = new SafeExposer(LuaManager.converterManager, LuaManager.platform, LuaManager.env);
-      this.exposer.exposeAPI(this.etherLuaMethods);
+      // Use protected exposer with proper SafeEtherLuaMethods instance
+      this.exposer = new SafeExposer(LuaManager.converterManager,
+              LuaManager.platform,
+              LuaManager.env);
+
+      SafeEtherLuaMethods protectedMethods = (SafeEtherLuaMethods) createProtectedMethods();
+      this.exposer.exposeAPI(protectedMethods);
 
       // Additional initialization after protection is in place
       initializeProtectedState();
+   }
+
+   private SafeEtherLuaMethods createProtectedMethods() {
+      return new SafeEtherLuaMethods() {
+         public Object invokeMethod(String name, Object... args) {
+            return protectionManager.invokeFunction(name, args);
+         }
+      };
+   }
+
+   // Implement packet handlers
+   public void handleNetworkPacket(String command, Map<String, Object> data) {
+      protectionManager.handlePacket(command, data);
    }
 
    private void initializeProtectedState() {

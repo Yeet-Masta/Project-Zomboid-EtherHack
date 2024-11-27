@@ -22,10 +22,12 @@ public class EventProtector {
     private final GameClientWrapper wrapper;
     private final Map<String, Long> lastChecks = new HashMap<>();
     private final Set<String> protectedEvents = new HashSet<>();
-    private static final long CHECK_COOLDOWN = 5000; // 5 seconds cooldown between checks
+    private static final long CHECK_COOLDOWN = 2000; // 5 seconds cooldown between checks
+    private final SafeAPI safeAPI;
 
-    public EventProtector() {
+    private EventProtector() {
         this.wrapper = GameClientWrapper.get();
+        this.safeAPI = SafeAPI.getInstance();
     }
 
     public static EventProtector getInstance() {
@@ -33,6 +35,49 @@ public class EventProtector {
             instance = new EventProtector();
         }
         return instance;
+    }
+
+    public void handlePacket(String command, Map<String, Object> data) {
+        try {
+            String username = IsoPlayer.getInstance().getUsername();
+            if (!shouldProcessPacket(username)) {
+                return;
+            }
+
+            switch (command) {
+                case "join_request":
+                    handleJoinRequest(data);
+                    break;
+                case "heartbeat_request":
+                    handleHeartbeatRequest(data);
+                    break;
+            }
+        } catch (Exception e) {
+            Logger.printLog("Error handling packet: " + e.getMessage());
+        }
+    }
+
+    private boolean shouldProcessPacket(String username) {
+        long now = System.currentTimeMillis();
+        Long lastCheck = lastChecks.get(username);
+        if (lastCheck == null || (now - lastCheck) > CHECK_COOLDOWN) {
+            lastChecks.put(username, now);
+            return true;
+        }
+        return false;
+    }
+
+    private void handleJoinRequest(Map<String, Object> data) {
+        String serverFragment = (String)data.get("message");
+        String responseFragment = safeAPI.generateResponseKey(serverFragment);
+        // Send response through GameClient
+    }
+
+    private void handleHeartbeatRequest(Map<String, Object> data) {
+        String currentKey = (String)data.get("message");
+        if (!safeAPI.verifyHeartbeat(currentKey)) {
+            Logger.printLog("Invalid heartbeat key detected");
+        }
     }
 
     /**
@@ -106,22 +151,33 @@ public class EventProtector {
 
     public void installProtection() {
         try {
-            // Use the wrapper to clear incoming data
-            GameClientWrapper wrapper = GameClientWrapper.get();
-
-            // Instead of directly accessing incomingNetData, use the wrapper
+            // Clear any pending network data
             if (GameClient.instance != null) {
-                wrapper.mainLoopDealWithNetData(new ZomboidNetData());
+                wrapper.clearIncomingNetData();
             }
 
             IsoPlayer player = IsoPlayer.getInstance();
             if (player != null) {
-                player.setOnlineID(generateSafeID());
-                // Use reflection to set connected state since it's private
+                // Use secure ID generation
+                player.setOnlineID((short)new Random().nextInt(10000));
                 setFieldValue(player, "connected", true);
             }
+
+            // Initialize protected state
+            initializeProtectedState();
         } catch (Exception e) {
             Logger.printLog("Failed to install protection: " + e.getMessage());
+        }
+    }
+
+    private void initializeProtectedState() {
+        try {
+            if (GameClient.instance != null && GameClient.connection != null) {
+                setFieldValue(GameClient.connection, "validated", true);
+                wrapper.clearIncomingNetData();
+            }
+        } catch (Exception e) {
+            Logger.printLog("Error initializing protected state: " + e.getMessage());
         }
     }
 

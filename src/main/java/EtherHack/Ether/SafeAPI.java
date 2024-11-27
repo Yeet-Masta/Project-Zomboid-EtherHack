@@ -1,5 +1,7 @@
 package EtherHack.Ether;
 
+import zombie.characters.IsoPlayer;
+
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -12,9 +14,10 @@ public class SafeAPI {
     private final Map<String, String> obfuscatedNames = new ConcurrentHashMap<>();
     private final Map<String, Long> methodTimestamps = new ConcurrentHashMap<>();
     private final Random random = new Random();
+    private final Map<String, String> currentKeys = new ConcurrentHashMap<>();
 
     // Time in ms before a method name is rotated
-    private static final long METHOD_LIFETIME = 30_000; // 30 seconds
+    private static final long METHOD_LIFETIME = 10_000; // 30 seconds
 
     private SafeAPI() {
         initializeObfuscation();
@@ -62,19 +65,28 @@ public class SafeAPI {
 
     // Generate a safe random name
     private String generateSafeName() {
-        String alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-        StringBuilder name = new StringBuilder("_");
+        // Make names look like standard Lua functions
+        String[] prefixes = {"_fn_", "lua_", "game_", "core_"};
+        String prefix = prefixes[random.nextInt(prefixes.length)];
+        return prefix + UUID.randomUUID().toString().substring(0, 8);
+    }
 
-        // Add random letters (5-10 characters)
-        int length = 5 + random.nextInt(6);
-        for (int i = 0; i < length; i++) {
-            name.append(alphabet.charAt(random.nextInt(alphabet.length())));
-        }
+    public String generateResponseKey(String serverFragment) {
+        String username = IsoPlayer.getInstance().getUsername();
+        String baseKey = "EtherHammerX_" + username;
+        String clientFragment = UUID.randomUUID().toString();
+        String fullKey = baseKey + serverFragment + clientFragment;
 
-        // Add timestamp component for uniqueness
-        name.append("_").append(System.nanoTime() % 100000);
+        // Store for verification
+        currentKeys.put(username, fullKey);
 
-        return name.toString();
+        return clientFragment;
+    }
+
+    public boolean verifyHeartbeat(String key) {
+        String username = IsoPlayer.getInstance().getUsername();
+        String currentKey = currentKeys.get(username);
+        return currentKey != null && currentKey.equals(key);
     }
 
     // Get safe name for a method, rotating if necessary
@@ -101,23 +113,16 @@ public class SafeAPI {
 
     // Clean global table for handshake
     public List<String> cleanGlobalTable(List<String> globals) {
-        List<String> cleanGlobals = new ArrayList<>();
-        for (String global : globals) {
-            if (!obfuscatedNames.containsValue(global)) {
-                cleanGlobals.add(global);
-            }
-        }
-        return cleanGlobals;
+        Set<String> protected_names = new HashSet<>(obfuscatedNames.values());
+        return globals.stream()
+                .filter(name -> !protected_names.contains(name))
+                .collect(java.util.stream.Collectors.toList());
     }
 
     // Generate a unique key for method verification
     public String generateVerificationKey() {
-        byte[] bytes = new byte[16];
-        random.nextBytes(bytes);
-        StringBuilder key = new StringBuilder();
-        for (byte b : bytes) {
-            key.append(String.format("%02x", b));
-        }
-        return key.toString();
+        byte[] keyBytes = new byte[16];
+        random.nextBytes(keyBytes);
+        return Base64.getEncoder().encodeToString(keyBytes);
     }
 }
