@@ -5,7 +5,10 @@ import zombie.network.GameClient;
 import zombie.network.ZomboidNetData;
 import zombie.characters.IsoPlayer;
 import se.krka.kahlua.vm.KahluaTable;
+
+import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
@@ -68,33 +71,23 @@ public class GameClientWrapper {
         return method;
     }
 
-    public ConcurrentLinkedQueue<ZomboidNetData> getIncomingNetData() {
+    @SuppressWarnings("unchecked")
+    public ArrayList<ZomboidNetData> getIncomingNetData() {
         try {
-            // Try to use reflection first if method not exposed
-            java.lang.reflect.Method method = GameClient.class
-                    .getDeclaredMethod("getIncomingNetData");
-            method.setAccessible(true);
-            return (ConcurrentLinkedQueue<ZomboidNetData>) method
-                    .invoke(GameClient.instance);
+            // Get the ArrayList field directly
+            Field field = GameClient.class.getDeclaredField("incomingNetData");
+            field.setAccessible(true);
+            return (ArrayList<ZomboidNetData>) field.get(GameClient.instance);
         } catch (Exception e) {
-            // Fallback to direct field access if method not available
-            try {
-                java.lang.reflect.Field field = GameClient.class
-                        .getDeclaredField("incomingNetData");
-                field.setAccessible(true);
-                return (ConcurrentLinkedQueue<ZomboidNetData>) field
-                        .get(GameClient.instance);
-            } catch (Exception ex) {
-                Logger.printLog("Failed to access incomingNetData: " + ex.getMessage());
-            }
+            Logger.printLog("Failed to access incomingNetData: " + e.getMessage());
+            return new ArrayList<>(); // Return empty list as fallback
         }
-        return new ConcurrentLinkedQueue<>(); // Return empty queue as fallback
     }
 
     public void clearIncomingNetData() {
-        ConcurrentLinkedQueue<ZomboidNetData> queue = getIncomingNetData();
-        if (queue != null) {
-            queue.clear();
+        ArrayList<ZomboidNetData> netData = getIncomingNetData();
+        if (netData != null) {
+            netData.clear();
         }
     }
 

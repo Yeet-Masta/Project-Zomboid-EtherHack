@@ -224,19 +224,30 @@ public class EventProtector {
     public static void filterIncomingPackets() {
         try {
             GameClientWrapper wrapper = GameClientWrapper.get();
-            // Fix getIncomingPackets to getIncomingNetData
-            ConcurrentLinkedQueue<ZomboidNetData> netData = wrapper.getIncomingNetData();
+            ArrayList<ZomboidNetData> netData = wrapper.getIncomingNetData();
 
-            // Use proper type comparison for PacketTypes
-            netData.removeIf(packet -> {
-                if (packet == null) return true;
+            if (netData == null) return;
+
+            // Create a new list for filtered packets
+            ArrayList<ZomboidNetData> filteredData = new ArrayList<>();
+
+            for (ZomboidNetData packet : netData) {
+                if (packet == null) continue;
 
                 short packetId = packet.type.getId();
-                return packetId == PacketTypes.PacketType.Validate.getId() ||
-                        packetId == PacketTypes.PacketType.PlayerConnect.getId() ||
-                        packetId == PacketTypes.PacketType.Login.getId() ||
-                        packetId == PacketTypes.PacketType.PlayerUpdateReliable.getId();
-            });
+                // Only keep non-anticheat packets
+                if (packetId != PacketTypes.PacketType.Validate.getId() &&
+                        packetId != PacketTypes.PacketType.PlayerConnect.getId() &&
+                        packetId != PacketTypes.PacketType.Login.getId() &&
+                        packetId != PacketTypes.PacketType.PlayerUpdateReliable.getId()) {
+                    filteredData.add(packet);
+                }
+            }
+
+            // Clear and update the netData list with filtered packets
+            netData.clear();
+            netData.addAll(filteredData);
+
         } catch (Exception e) {
             Logger.printLog("Error filtering packets: " + e.getMessage());
         }

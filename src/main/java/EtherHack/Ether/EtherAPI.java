@@ -423,7 +423,7 @@ public class EtherAPI {
          // Clear any queued network events
           GameClientWrapper wrapper = GameClientWrapper.get();
           // Get and clear the queue
-          ConcurrentLinkedQueue<ZomboidNetData> netData = wrapper.getIncomingNetData();
+          ArrayList<ZomboidNetData> netData = wrapper.getIncomingNetData();
           if (netData != null) {
              netData.clear();
           }
