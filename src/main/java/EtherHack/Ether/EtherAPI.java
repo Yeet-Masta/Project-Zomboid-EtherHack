@@ -405,9 +405,9 @@ public class EtherAPI {
 
    private void initializeProtectedState() {
       try {
-         if (GameClient.instance != null && GameClient.connection != null) {
+         if (GameClient.connection != null) {
             // Set connection as validated
-            setFieldValue(GameClient.connection, "validated", true);
+            setFieldValue(GameClient.connection);
 
             // Use wrapper to clear network data
             GameClientWrapper wrapper = GameClientWrapper.get();
@@ -421,24 +421,22 @@ public class EtherAPI {
    private void clearPendingHandshakes() {
       try {
          // Clear any queued network events
-         if (GameClient.instance != null) {
-            GameClientWrapper wrapper = GameClientWrapper.get();
-            // Get and clear the queue
-            ConcurrentLinkedQueue<ZomboidNetData> netData = wrapper.getIncomingNetData();
-            if (netData != null) {
-               netData.clear();
-            }
-         }
+          GameClientWrapper wrapper = GameClientWrapper.get();
+          // Get and clear the queue
+          ConcurrentLinkedQueue<ZomboidNetData> netData = wrapper.getIncomingNetData();
+          if (netData != null) {
+             netData.clear();
+          }
       } catch (Exception e) {
          Logger.printLog("Error clearing handshakes: " + e.getMessage());
       }
    }
 
-   private static void setFieldValue(Object obj, String fieldName, Object value) {
+   private static void setFieldValue(Object obj) {
       try {
-         java.lang.reflect.Field field = obj.getClass().getDeclaredField(fieldName);
+         java.lang.reflect.Field field = obj.getClass().getDeclaredField("validated");
          field.setAccessible(true);
-         field.set(obj, value);
+         field.set(obj, true);
       } catch (Exception e) {
          Logger.printLog("Error setting field value: " + e.getMessage());
       }
@@ -737,7 +735,7 @@ public class EtherAPI {
          this.updateVehiclesVisuals();
          this.updateZombiesVisuals();
          this.updateUltraPlayerVision();
-      } catch (Exception var1) {
+      } catch (Exception ignored) {
       }
 
    }

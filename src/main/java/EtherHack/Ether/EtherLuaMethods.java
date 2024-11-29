@@ -115,13 +115,12 @@ public class EtherLuaMethods {
       try {
          Path var1 = Paths.get("EtherHack/config");
          List var2 = Files.list(var1).filter(EtherLuaMethods::lambda$getConfigList$0).toList();
-         Iterator var3 = var2.iterator();
 
-         while(var3.hasNext()) {
-            Path var4 = (Path)var3.next();
-            String var5 = var4.getFileName().toString().replace(".properties", "");
-            var0.add(var5);
-         }
+          for (Object o : var2) {
+              Path var4 = (Path) o;
+              String var5 = var4.getFileName().toString().replace(".properties", "");
+              var0.add(var5);
+          }
 
          return var0;
       } catch (IOException var6) {

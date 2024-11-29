@@ -50,10 +50,15 @@ public class SafeAPI {
                 "toggleEnableUnlimitedCarry",
                 "toggleOptimalWeight",
                 "toggleOptimalCalories",
+                "vehicle",
                 "toggleDisableFakeInfectionLevel",
                 "toggleDisableInfectionLevel",
                 "toggleDisableWetness",
-                //"instanceof" [DEBUG]
+                "repairPart",
+                "setPartCondition",
+                "repair",
+                "setContainerContentAmount",
+                "instanceof"
                 // Add other methods that need protection
         };
 

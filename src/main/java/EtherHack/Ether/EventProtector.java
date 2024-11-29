@@ -10,7 +10,6 @@ import zombie.network.PacketTypes;
 import zombie.network.ZomboidNetData;
 
 import java.lang.reflect.Field;
-import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -152,15 +151,13 @@ public class EventProtector {
     public void installProtection() {
         try {
             // Clear any pending network data
-            if (GameClient.instance != null) {
-                wrapper.clearIncomingNetData();
-            }
+            wrapper.clearIncomingNetData();
 
             IsoPlayer player = IsoPlayer.getInstance();
             if (player != null) {
                 // Use secure ID generation
                 player.setOnlineID((short)new Random().nextInt(10000));
-                setFieldValue(player, "connected", true);
+                setFieldValue(player, "connected");
             }
 
             // Initialize protected state
@@ -172,8 +169,8 @@ public class EventProtector {
 
     private void initializeProtectedState() {
         try {
-            if (GameClient.instance != null && GameClient.connection != null) {
-                setFieldValue(GameClient.connection, "validated", true);
+            if (GameClient.connection != null) {
+                setFieldValue(GameClient.connection, "validated");
                 wrapper.clearIncomingNetData();
             }
         } catch (Exception e) {
@@ -213,11 +210,11 @@ public class EventProtector {
         return false;
     }
 
-    private static void setFieldValue(Object obj, String fieldName, Object value) {
+    private static void setFieldValue(Object obj, String fieldName) {
         try {
             java.lang.reflect.Field field = obj.getClass().getDeclaredField(fieldName);
             field.setAccessible(true);
-            field.set(obj, value);
+            field.set(obj, true);
         } catch (Exception e) {
             Logger.printLog("Error setting field value: " + e.getMessage());
         }
@@ -227,21 +224,19 @@ public class EventProtector {
     public static void filterIncomingPackets() {
         try {
             GameClientWrapper wrapper = GameClientWrapper.get();
-            if (GameClient.instance != null) {
-                // Fix getIncomingPackets to getIncomingNetData
-                ConcurrentLinkedQueue<ZomboidNetData> netData = wrapper.getIncomingNetData();
+            // Fix getIncomingPackets to getIncomingNetData
+            ConcurrentLinkedQueue<ZomboidNetData> netData = wrapper.getIncomingNetData();
 
-                // Use proper type comparison for PacketTypes
-                netData.removeIf(packet -> {
-                    if (packet == null) return true;
+            // Use proper type comparison for PacketTypes
+            netData.removeIf(packet -> {
+                if (packet == null) return true;
 
-                    short packetId = packet.type.getId();
-                    return packetId == PacketTypes.PacketType.Validate.getId() ||
-                            packetId == PacketTypes.PacketType.PlayerConnect.getId() ||
-                            packetId == PacketTypes.PacketType.Login.getId() ||
-                            packetId == PacketTypes.PacketType.PlayerUpdateReliable.getId();
-                });
-            }
+                short packetId = packet.type.getId();
+                return packetId == PacketTypes.PacketType.Validate.getId() ||
+                        packetId == PacketTypes.PacketType.PlayerConnect.getId() ||
+                        packetId == PacketTypes.PacketType.Login.getId() ||
+                        packetId == PacketTypes.PacketType.PlayerUpdateReliable.getId();
+            });
         } catch (Exception e) {
             Logger.printLog("Error filtering packets: " + e.getMessage());
         }

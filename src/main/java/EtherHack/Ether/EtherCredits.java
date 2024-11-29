@@ -20,7 +20,7 @@ public class EtherCredits {
          Core var1 = Core.getInstance();
          float var2 = (float)var1.getScreenHeight();
          Rendering.drawText(Info.CHEAT_CREDITS_TITLE, UIFont.Small, 15.0F, var2 - 30.0F, 255.0F, 255.0F, 255.0F, 255.0F);
-         Rendering.drawText("Author: Quzile", UIFont.Small, 15.0F, var2 - 15.0F, 255.0F, 255.0F, 255.0F, 255.0F);
+         Rendering.drawText("Author: Yeet-Masta", UIFont.Small, 15.0F, var2 - 15.0F, 255.0F, 255.0F, 255.0F, 255.0F);
       }
 
    }

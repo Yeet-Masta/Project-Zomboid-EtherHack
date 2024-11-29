@@ -9,9 +9,9 @@ public class Info {
    public static final String CHEAT_CREDITS_TITLE;
    public static final String CHEAT_WINDOW_TITLE_SUFFIX;
    public static final String CHEAT_NAME = "EtherHack";
-   public static final String CHEAT_AUTHOR = "Quzile";
+   public static final String CHEAT_AUTHOR = "Yeet-Masta";
    public static final String CHEAT_TAG = "[EtherHack]: ";
-   public static final String CHEAT_CREDITS_AUTHOR = "Author: Quzile";
+   public static final String CHEAT_CREDITS_AUTHOR = "Author: Yeet-Masta";
 
    static {
       Properties var0 = new Properties();

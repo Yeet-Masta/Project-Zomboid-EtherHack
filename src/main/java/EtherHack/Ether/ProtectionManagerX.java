@@ -2,6 +2,10 @@ package EtherHack.Ether;
 
 import EtherHack.utils.Logger;
 
+import java.lang.ref.WeakReference;
+import java.lang.reflect.Method;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.ByteBuffer;
 import java.util.concurrent.*;
 import java.security.SecureRandom;
@@ -237,7 +241,7 @@ public class ProtectionManagerX {
     private void handleKeyRotation(Map<String, Object> data) {
         // Handle key rotation from server
         String newKey = (String)data.get("key");
-        if (newKey != null && validKey(newKey)) {
+        if (validKey(newKey)) {
             pendingKey = newKey;
         }
     }
@@ -370,5 +374,182 @@ public class ProtectionManagerX {
             return ByteBuffer.allocate(0);
         }
     }
-
 }
+
+/*public class AdvancedProtection {
+    private static class MethodProxy {
+        private final String originalName;
+        private final WeakReference<Method> methodRef;
+        private final byte[] signature;
+
+        public MethodProxy(Method method) {
+            this.originalName = method.getName();
+            this.methodRef = new WeakReference<>(method);
+            this.signature = generateMethodSignature(method);
+        }
+    }
+
+    public class VirtualEnvironment {
+        private final Map<String, Object> virtualGlobals = new ConcurrentHashMap<>();
+        private final Map<String, String> redirectMap = new ConcurrentHashMap<>();
+        private final ClassLoader isolatedLoader;
+
+        public VirtualEnvironment() {
+            // Create isolated classloader for function hiding
+            this.isolatedLoader = new URLClassLoader(new URL[0], null) {
+                @Override
+                protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+                    // Only load whitelisted classes
+                    if (isWhitelisted(name)) {
+                        return super.loadClass(name, resolve);
+                    }
+                    throw new ClassNotFoundException(name);
+                }
+            };
+        }
+
+        // Redirect function calls through virtual environment
+        public Object invoke(String name, Object... args) throws Throwable {
+            String redirect = redirectMap.get(name);
+            if (redirect != null) {
+                return virtualGlobals.get(redirect);
+            }
+            throw new NoSuchMethodException(name);
+        }
+    }
+
+    private class MemoryProtector {
+        private final Set<Long> protectedAddresses = new ConcurrentSkipListSet<>();
+        private final Map<Long, byte[]> originalBytes = new ConcurrentHashMap<>();
+
+        public void protectMemoryRegion(long address, int size) {
+            // Store original bytes
+            byte[] original = new byte[size];
+            copyMemory(address, original);
+            originalBytes.put(address, original);
+
+            // Apply XOR mask to hide contents
+            byte[] mask = generateXORMask(size);
+            applyMask(address, mask);
+
+            protectedAddresses.add(address);
+        }
+
+        public void unprotectMemoryRegion(long address) {
+            byte[] original = originalBytes.get(address);
+            if (original != null) {
+                copyMemory(original, address);
+                protectedAddresses.remove(address);
+            }
+        }
+    }
+
+    private class CodeHider {
+        private Map<String, byte[]> encryptedCode = new ConcurrentHashMap<>();
+        private final SecureRandom random = new SecureRandom();
+
+        public void hideMethod(Method method) {
+            byte[] bytecode = getMethodBytecode(method);
+            byte[] key = new byte[32];
+            random.nextBytes(key);
+            byte[] encrypted = encryptBytecode(bytecode, key);
+            encryptedCode.put(method.getName(), encrypted);
+            // Replace original bytecode with stub
+            replaceMethodBytecode(method, generateStub());
+        }
+
+        public void restoreMethod(Method method) {
+            byte[] encrypted = encryptedCode.get(method.getName());
+            if (encrypted != null) {
+                byte[] original = decryptBytecode(encrypted);
+                replaceMethodBytecode(method, original);
+            }
+        }
+    }
+
+    private class NetworkFilter {
+        private final Queue<PacketWrapper> delayedPackets = new ConcurrentLinkedQueue<>();
+        private final Map<String, PacketTransform> transforms = new ConcurrentHashMap<>();
+
+        public void interceptPacket(PacketWrapper packet) {
+            // Add random delay
+            if (shouldDelayPacket(packet)) {
+                delayedPackets.add(packet);
+                scheduleDelayedSend(packet);
+                return;
+            }
+
+            // Transform packet if needed
+            PacketTransform transform = transforms.get(packet.getType());
+            if (transform != null) {
+                packet = transform.apply(packet);
+            }
+
+            sendPacket(packet);
+        }
+    }
+
+    private class HookManager {
+        private final Map<Long, byte[]> originalBytes = new ConcurrentHashMap<>();
+        private final Map<String, Hook> activeHooks = new ConcurrentHashMap<>();
+
+        public void installHook(String target, Hook hook) {
+            long address = resolveFunction(target);
+            byte[] original = backupBytes(address, hook.length());
+            originalBytes.put(address, original);
+            writeJump(address, hook.getAddress());
+            activeHooks.put(target, hook);
+        }
+
+        public void removeHook(String target) {
+            Hook hook = activeHooks.get(target);
+            if (hook != null) {
+                long address = resolveFunction(target);
+                byte[] original = originalBytes.get(address);
+                restoreBytes(address, original);
+                activeHooks.remove(target);
+            }
+        }
+    }
+
+    // Additional protection methods
+    private void initializeProtections() {
+        virtualEnv = new VirtualEnvironment();
+        memProtect = new MemoryProtector();
+        codeHider = new CodeHider();
+        networkFilter = new NetworkFilter();
+        hookManager = new HookManager();
+
+        // Install core protections
+        installBaseProtections();
+
+        // Start monitor threads
+        startProtectionMonitors();
+    }
+
+    private void installBaseProtections() {
+        // Protect critical memory regions
+        for (Method method : getMethods()) {
+            protectMethod(method);
+        }
+
+        // Install API hooks
+        installAPIHooks();
+
+        // Initialize network filtering
+        initNetworkFilters();
+    }
+
+    private void startProtectionMonitors() {
+        // Start monitoring threads
+        ScheduledExecutorService executor = Executors.newScheduledThreadPool(2);
+
+        // Memory integrity checks
+        executor.scheduleAtFixedRate(this::checkMemoryIntegrity,
+                0, 1, TimeUnit.SECONDS);
+
+        // Network monitoring
+        executor.scheduleAtFixedRate(this::monitorNetwork,
+                0, 100, TimeUnit.MILLISECONDS);
+    }
+}*/

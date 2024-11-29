@@ -70,14 +70,12 @@ public class GameClientWrapper {
 
     public ConcurrentLinkedQueue<ZomboidNetData> getIncomingNetData() {
         try {
-            if (GameClient.instance != null) {
-                // Try to use reflection first if method not exposed
-                java.lang.reflect.Method method = GameClient.class
-                        .getDeclaredMethod("getIncomingNetData");
-                method.setAccessible(true);
-                return (ConcurrentLinkedQueue<ZomboidNetData>) method
-                        .invoke(GameClient.instance);
-            }
+            // Try to use reflection first if method not exposed
+            java.lang.reflect.Method method = GameClient.class
+                    .getDeclaredMethod("getIncomingNetData");
+            method.setAccessible(true);
+            return (ConcurrentLinkedQueue<ZomboidNetData>) method
+                    .invoke(GameClient.instance);
         } catch (Exception e) {
             // Fallback to direct field access if method not available
             try {

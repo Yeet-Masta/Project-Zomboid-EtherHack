@@ -96,10 +96,10 @@ function EtherInfoPanel:render()
     y = y + marginTitle
 
     local contactTexts = {
-        "GitHub: https://github.com/Quzile",
-        "YouTube: https://www.youtube.com/@quzile",
-        "Discord: quzile (Quzile#9580)",
-        "Email: rubranny@gmail.com",
+        "GitHub: https://github.com/Yeet-Masta/",
+        "YouTube: https://www.youtube.com/@yeetmaster5161",
+        "Discord: Shuffler5101 (shuffler5101)",
+        "Email: spaceguy234@gmail.com",
         getTranslate("UI_InformationPanel_Contacts_Donation") .. "https://www.donationalerts.com/r/quzile",
     }
     for i, text in ipairs(contactTexts) do
