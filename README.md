@@ -171,4 +171,4 @@ This project is under `MIT License` - see the LICENSE file for details.
 
 ## Contact
 
-If you have any questions, feel free to reach out to me at `spaceguy233@gmail.com`
+If you have any questions, feel free to reach out to me at `spaceguy234@gmail.com`
