@@ -7,7 +7,6 @@ import java.lang.reflect.Modifier;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -20,114 +19,143 @@ import org.objectweb.asm.tree.AnnotationNode;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
 
+/**
+ * Класс Patch предоставляет функциональность для внедрения патчей в классы игры.
+ */
 public class Patch {
-   private static final Map<String, ClassNode> classNodeMap = new HashMap<>();
+    private static final Map<String, ClassNode> classNodeMap = new HashMap<>();
 
-   public static void injectIntoClass(String className, String methodName, boolean isStatic, Consumer<MethodNode> injector) {
-      Logger.print("Injection into a game file '" + className + "' in method: '" + methodName + "'");
+    public Patch() {
+    }
 
-      ClassNode classNode = classNodeMap.computeIfAbsent(className, key -> {
-         ClassNode node = new ClassNode();
-         try {
-            ClassReader reader = new ClassReader(key);
-            reader.accept(node, 0);
-            return node;
-         } catch (IOException e) {
-            Logger.print("Failed to read class: " + e.getMessage());
-            return null;
-         }
-      });
+    /**
+     * Проверяет наличие аннотации Injected в указанном классе.
+     * @param filePath    путь к файлу класса
+     * @param gameFolder  папка игры
+     * @return true, если аннотация Injected присутствует; в противном случае - false
+     */
+    public static boolean isInjectedAnnotationPresent(String filePath, String gameFolder) {
+        Path currentPath = Paths.get("").toAbsolutePath();
+        Path classPath = Paths.get(currentPath.toString(), gameFolder, filePath);
 
-      if (classNode == null) {
-         throw new RuntimeException("Failed to load class " + className);
-      }
+        try (FileInputStream fileInputStream = new FileInputStream(classPath.toString())) {
+            ClassReader reader = new ClassReader(fileInputStream);
+            final boolean[] isAnnotationFound = new boolean[]{false};
+            reader.accept(new ClassVisitor(589824) {
+                public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
+                    MethodVisitor mv = super.visitMethod(access, name, descriptor, signature, exceptions);
+                    return new MethodVisitor(589824, mv) {
+                        public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
+                            if (descriptor.equals("LEtherHack/annotations/Injected;")) {
+                                isAnnotationFound[0] = true;
+                            }
 
-      for (MethodNode methodNode : classNode.methods) {
-         if (methodNode.name.equals(methodName) && Modifier.isStatic(methodNode.access) == isStatic) {
-            if (!hasInjectedAnnotation(methodNode)) {
-               addInjectAnnotation(classNode, methodName);
+                            return super.visitAnnotation(descriptor, visible);
+                        }
+                    };
+                }
+            }, 0);
+
+            return isAnnotationFound[0];
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    /**
+     * Добавляет аннотацию Injected в указанный метод класса.
+     * @param classNode   узел класса
+     * @param methodName  имя метода
+     */
+    private static void addInjectAnnotation(ClassNode classNode, String methodName) {
+        for (MethodNode method : classNode.methods) {
+            if (method.name.equals(methodName)) {
+                if (method.visibleAnnotations == null) {
+                    method.visibleAnnotations = new LinkedList<>();
+                } else {
+                    for (AnnotationNode annotation : method.visibleAnnotations) {
+                        if (annotation.desc.equals("LEtherHack/annotations/Injected;")) {
+                            return;
+                        }
+                    }
+                }
+
+                AnnotationNode annotationNode = new AnnotationNode("LEtherHack/annotations/Injected;");
+                method.visibleAnnotations.add(annotationNode);
             }
-            injector.accept(methodNode);
-         }
-      }
+        }
+    }
 
-      classNodeMap.put(className, classNode);
-   }
+    /**
+     * Проверяет наличие аннотации Injected в указанном методе.
+     * @param method узел метода
+     * @return true, если аннотация Injected присутствует; в противном случае - false
+     */
+    private static boolean hasInjectedAnnotation(MethodNode method) {
+        if (method.visibleAnnotations == null) {
+            return false;
+        }
 
-   public static boolean isInjectedAnnotationPresent(String file, String baseDir) {
-      Path filePath = Paths.get(baseDir, file);
-
-      try (FileInputStream fis = new FileInputStream(filePath.toString())) {
-         ClassReader reader = new ClassReader(fis);
-         boolean[] found = new boolean[]{false};
-
-         reader.accept(new ClassVisitor(589824) {
-            @Override
-            public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
-               MethodVisitor mv = super.visitMethod(access, name, descriptor, signature, exceptions);
-               return new MethodVisitor(589824, mv) {
-                  @Override
-                  public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
-                     if (descriptor.equals("LEtherHack/annotations/Injected;")) {
-                        found[0] = true;
-                     }
-                     return super.visitAnnotation(descriptor, visible);
-                  }
-               };
+        for (AnnotationNode annotation : method.visibleAnnotations) {
+            if ("LInjected;".equals(annotation.desc)) {
+                return true;
             }
-         }, 0);
+        }
 
-         return found[0];
-      } catch (IOException e) {
-         Logger.print("Error checking for injected annotations: " + e.getMessage());
-         return false;
-      }
-   }
+        return false;
+    }
 
-   private static void addInjectAnnotation(ClassNode classNode, String methodName) {
-      for (MethodNode method : classNode.methods) {
-         if (method.name.equals(methodName)) {
-            if (method.visibleAnnotations == null) {
-               method.visibleAnnotations = new LinkedList<>();
+    /**
+     * Внедряет патч в указанный класс и метод.
+     * @param className    имя класса
+     * @param methodName   имя метода
+     * @param isStatic     флаг, указывающий, является ли метод статическим
+     * @param modifyMethod функция для модификации метода
+     */
+    public static void injectIntoClass(String className, String methodName, boolean isStatic, Consumer<MethodNode> modifyMethod) {
+        Logger.print("Injection into a game file '" + className + "' in method: '" + methodName + "'");
+
+        try {
+            ClassNode classNode = classNodeMap.getOrDefault(className, new ClassNode());
+            if (!classNodeMap.containsKey(className)) {
+                ClassReader classReader = new ClassReader(className);
+                classReader.accept(classNode, 0);
             }
 
-            // Check if annotation already exists
-            boolean hasAnnotation = method.visibleAnnotations.stream()
-                    .anyMatch(anno -> anno.desc.equals("LEtherHack/annotations/Injected;"));
+            for (MethodNode method : classNode.methods) {
+                if (method.name.equals(methodName) && Modifier.isStatic(method.access) == isStatic) {
+                    if (!hasInjectedAnnotation(method)) {
+                        addInjectAnnotation(classNode, methodName);
+                    }
 
-            if (!hasAnnotation) {
-               method.visibleAnnotations.add(new AnnotationNode("LEtherHack/annotations/Injected;"));
+                    modifyMethod.accept(method);
+                }
             }
 
-            return;
-         }
-      }
-   }
+            classNodeMap.put(className, classNode);
+        } catch (IOException e) {
+            Logger.print("An error occurred during injection into '" + className + "': " + e.getMessage());
+        }
+    }
 
-   private static boolean hasInjectedAnnotation(MethodNode method) {
-      if (method.visibleAnnotations == null) {
-         return false;
-      }
-      return method.visibleAnnotations.stream()
-              .anyMatch(anno -> anno.desc.equals("LEtherHack/annotations/Injected;"));
-   }
+    /**
+     * Сохраняет измененные классы.
+     */
+    public static void saveModifiedClasses() {
+        for (Map.Entry<String, ClassNode> stringClassNodeEntry : classNodeMap.entrySet()) {
+            String className = stringClassNodeEntry.getKey();
+            ClassNode classNode = stringClassNodeEntry.getValue();
 
-   public static void saveModifiedClasses() {
-      for (Map.Entry<String, ClassNode> entry : classNodeMap.entrySet()) {
-         String className = entry.getKey();
-         ClassNode classNode = entry.getValue();
-
-         try {
-            ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_MAXS | ClassWriter.COMPUTE_FRAMES);
-            classNode.accept(writer);
-            byte[] bytes = writer.toByteArray();
+            ClassWriter classWriter = new ClassWriter(3);
+            classNode.accept(classWriter);
+            byte[] modifiedClass = classWriter.toByteArray();
 
             try (FileOutputStream fos = new FileOutputStream(className + ".class")) {
-               fos.write(bytes);
+                fos.write(modifiedClass);
+            } catch (IOException except) {
+                Logger.print("An error occurred while writing the modified class '" + className + "': " + except.getMessage());
             }
-         } catch (IOException e) {
-            Logger.print("Error saving modified class '" + className + "': " + e.getMessage());
-         }
-      }
-   }
+        }
+    }
 }

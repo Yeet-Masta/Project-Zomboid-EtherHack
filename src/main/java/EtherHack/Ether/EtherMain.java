@@ -2,33 +2,51 @@ package EtherHack.Ether;
 
 import EtherHack.utils.Logger;
 
+/**
+ * Класс EtherMain является точкой входа для инициализации EtherHack.
+ */
 public class EtherMain {
-   private static EtherMain instance;
-   public EtherTranslator etherTranslator;
-   public EtherCredits etherCredits;
-   public EtherLuaManager etherLuaManager;
-   public EtherAPI etherAPI;
+    private static EtherMain instance;
+    public EtherTranslator etherTranslator;
+    public EtherCredits etherCredits;
+    public EtherLuaManager etherLuaManager;
+    public EtherAPI etherAPI;
 
-   private EtherMain() {
-   }
+    /**
+     * Предотвращение создания нового экземпляра класса EtherMain из вне.
+     */
+    private EtherMain() {
+    }
 
-   public void init() {
-      Logger.printLog("Initializing EtherHack...");
-      this.etherTranslator = new EtherTranslator();
-      this.etherTranslator.loadTranslations();
-      this.etherCredits = new EtherCredits();
-      this.etherAPI = new EtherAPI();
-      this.etherAPI.loadAPI();
-      this.etherLuaManager = new EtherLuaManager();
-      this.etherLuaManager.loadLua();
-      Logger.printLog("Initialization EtherHack was completed!");
-   }
+    /**
+     * Инициализирует EtherHack.
+     */
+    public void init() {
+        Logger.printLog("Initializing EtherHack...");
 
-   public static EtherMain getInstance() {
-      if (instance == null) {
-         instance = new EtherMain();
-      }
+        etherTranslator = new EtherTranslator();
+        etherTranslator.loadTranslations();
 
-      return instance;
-   }
+        etherCredits = new EtherCredits();
+
+        etherAPI = new EtherAPI();
+        etherAPI.loadAPI();
+
+        etherLuaManager = new EtherLuaManager();
+        etherLuaManager.loadLua();
+
+        Logger.printLog("Initialization EtherHack was completed!");
+    }
+
+    /**
+     * Возвращает экземпляр класса EtherMain.
+     * @return экземпляр класса EtherMain
+     */
+    public static EtherMain getInstance() {
+        if (instance == null) {
+            instance = new EtherMain();
+        }
+
+        return instance;
+    }
 }

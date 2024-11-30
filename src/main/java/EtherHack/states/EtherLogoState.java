@@ -1,133 +1,175 @@
 package EtherHack.states;
 
-import java.util.function.Consumer;
 import zombie.GameTime;
 import zombie.core.Core;
 import zombie.core.SpriteRenderer;
 import zombie.core.textures.Texture;
 import zombie.gameStates.GameState;
 import zombie.gameStates.GameStateMachine;
+import zombie.gameStates.GameStateMachine.StateAction;
 import zombie.input.GameKeyboard;
 import zombie.input.Mouse;
 import zombie.ui.UIManager;
 
+/**
+ * Класс EtherLogoState представляет состояние отображения логотипа EtherHack.
+ */
 public class EtherLogoState extends GameState {
-   private float alpha = 0.0F;
-   private float logoDisplayTime = 40.0F;
-   private int stage = 0;
-   private float targetAlpha = 0.0F;
-   private boolean noRender = false;
-   private final LogoElement etherLogo = new LogoElement("EtherHack/media/EtherLogo.png");
+    private float alpha = 0.0F;
+    private float logoDisplayTime = 40.0F;
+    private int stage = 0;
+    private float targetAlpha = 0.0F;
+    private boolean noRender = false;
+    private final LogoElement etherLogo = new LogoElement("EtherHack/media/EtherLogo.png");
 
-   public void enter() {
-      UIManager.bSuspend = true;
-      this.alpha = 0.0F;
-      this.targetAlpha = 1.0F;
-   }
+    /**
+     * Создает новый экземпляр класса EtherLogoState.
+     */
+    public EtherLogoState() {
+    }
 
-   public void exit() {
-      UIManager.bSuspend = false;
-   }
+    /**
+     * Вызывается при входе в состояние.
+     */
+    public void enter() {
+        UIManager.bSuspend = true;
+        alpha = 0.0F;
+        targetAlpha = 1.0F;
+    }
 
-   public void render() {
-      Core var1 = Core.getInstance();
-      if (this.noRender) {
-         var1.StartFrameUI();
-         SpriteRenderer.instance.renderi((Texture)null, 0, 0, var1.getOffscreenWidth(0), var1.getOffscreenHeight(0), 0.0F, 0.0F, 0.0F, 1.0F, (Consumer)null);
-         var1.EndFrame();
-      } else {
-         var1.StartFrameUI();
-         var1.EndFrame();
-         boolean var2 = UIManager.useUIFBO;
-         UIManager.useUIFBO = false;
-         var1.StartFrameUI();
-         SpriteRenderer.instance.renderi((Texture)null, 0, 0, var1.getOffscreenWidth(0), var1.getOffscreenHeight(0), 0.0F, 0.0F, 0.0F, 1.0F, (Consumer)null);
-         this.etherLogo.centerOnScreen();
-         this.etherLogo.render(this.alpha);
-         var1.EndFrameUI();
-         UIManager.useUIFBO = var2;
-      }
+    /**
+     * Вызывается при выходе из состояния.
+     */
+    public void exit() {
+        UIManager.bSuspend = false;
+    }
 
-   }
+    /**
+     * Отрисовывка логотипа.
+     */
+    public void render() {
+        Core core = Core.getInstance();
+        if (noRender) {
+            core.StartFrameUI();
+            SpriteRenderer.instance.renderi(null, 0, 0, core.getOffscreenWidth(0), core.getOffscreenHeight(0), 0.0F, 0.0F, 0.0F, 1.0F, null);
+            core.EndFrame();
+        } else {
+            core.StartFrameUI();
+            core.EndFrame();
+            boolean tempUseUIFBO = UIManager.useUIFBO;
+            UIManager.useUIFBO = false;
+            core.StartFrameUI();
+            SpriteRenderer.instance.renderi(null, 0, 0, core.getOffscreenWidth(0), core.getOffscreenHeight(0), 0.0F, 0.0F, 0.0F, 1.0F, null);
+            etherLogo.centerOnScreen();
+            etherLogo.render(alpha);
+            core.EndFrameUI();
+            UIManager.useUIFBO = tempUseUIFBO;
+        }
 
-   public GameStateMachine.StateAction update() {
-      if (Mouse.isLeftDown() || GameKeyboard.isKeyDown(28) || GameKeyboard.isKeyDown(57) || GameKeyboard.isKeyDown(1)) {
-         this.stage = 2;
-      }
+    }
 
-      GameTime var1 = GameTime.getInstance();
-      switch (this.stage) {
-         case 0:
-            this.targetAlpha = 1.0F;
-            if (this.alpha == 1.0F) {
-               this.stage = 1;
+    /**
+     * Обновляет состояние.
+     * @return действие, определяющее дальнейшее поведение игры
+     */
+    public GameStateMachine.StateAction update() {
+        if (Mouse.isLeftDown() || GameKeyboard.isKeyDown(28) || GameKeyboard.isKeyDown(57) || GameKeyboard.isKeyDown(1)) {
+            stage = 2;
+        }
+
+        GameTime gameTime = GameTime.getInstance();
+        switch (stage) {
+            case 0 -> {
+                targetAlpha = 1.0F;
+                if (alpha == 1.0F) {
+                    stage = 1;
+                }
             }
-            break;
-         case 1:
-            this.logoDisplayTime -= var1.getMultiplier() / 1.6F;
-            if (this.logoDisplayTime <= 0.0F) {
-               this.stage = 2;
+            case 1 -> {
+                logoDisplayTime -= gameTime.getMultiplier() / 1.6F;
+                if (logoDisplayTime <= 0.0F) {
+                    stage = 2;
+                }
             }
-            break;
-         case 2:
-            this.targetAlpha = 0.0F;
-            if (this.alpha == 0.0F) {
-               this.noRender = true;
-               return GameStateMachine.StateAction.Continue;
+            case 2 -> {
+                targetAlpha = 0.0F;
+                if (alpha == 0.0F) {
+                    noRender = true;
+                    return StateAction.Continue;
+                }
             }
-      }
+        }
 
-      this.updateAlpha(var1);
-      return GameStateMachine.StateAction.Remain;
-   }
+        updateAlpha(gameTime);
+        return StateAction.Remain;
+    }
 
-   private void updateAlpha(GameTime var1) {
-      float var3 = 0.02F * var1.getMultiplier();
-      if (this.alpha < this.targetAlpha) {
-         this.alpha += var3;
-         if (this.alpha > this.targetAlpha) {
-            this.alpha = this.targetAlpha;
-         }
-      } else if (this.alpha > this.targetAlpha) {
-         this.alpha -= var3;
-         if (this.stage == 2) {
-            this.alpha -= var3;
-         }
+    /**
+     * Обновляет прозрачность логотипа.
+     * @param gameTime время игры
+     */
+    private void updateAlpha(GameTime gameTime) {
+        float alphaStep = 0.02F;
+        float deltaTime = alphaStep * gameTime.getMultiplier();
+        if (alpha < targetAlpha) {
+            alpha += deltaTime;
+            if (alpha > targetAlpha) {
+                alpha = targetAlpha;
+            }
+        } else if (alpha > targetAlpha) {
+            alpha -= deltaTime;
+            if (stage == 2) {
+                alpha -= deltaTime;
+            }
 
-         if (this.alpha < this.targetAlpha) {
-            this.alpha = this.targetAlpha;
-         }
-      }
+            if (alpha < targetAlpha) {
+                alpha = targetAlpha;
+            }
+        }
 
-   }
+    }
 
-   private static final class LogoElement {
-      private final Texture texture;
-      private int x;
-      private int y;
-      private int width;
-      private int height;
+    /**
+     * Внутренний класс, представляющий элемент логотипа.
+     */
+    private static final class LogoElement {
+        private final Texture texture;
+        private int x;
+        private int y;
+        private int width;
+        private int height;
 
-      LogoElement(String var1) {
-         this.texture = Texture.getSharedTexture(var1);
-         if (this.texture != null) {
-            this.width = this.texture.getWidth();
-            this.height = this.texture.getHeight();
-         }
+        /**
+         * Создает новый экземпляр класса LogoElement с указанным путем текстуры.
+         * @param texturePath путь к текстуре элемента
+         */
+        LogoElement(String texturePath) {
+            texture = Texture.getSharedTexture(texturePath);
+            if (texture != null) {
+                width = texture.getWidth();
+                height = texture.getHeight();
+            }
 
-      }
+        }
 
-      void centerOnScreen() {
-         Core var1 = Core.getInstance();
-         this.x = (var1.getScreenWidth() - this.width) / 2;
-         this.y = (var1.getScreenHeight() - this.height) / 2;
-      }
+        /**
+         * Выравнивает элемент по центру экрана.
+         */
+        void centerOnScreen() {
+            Core core = Core.getInstance();
+            x = (core.getScreenWidth() - width) / 2;
+            y = (core.getScreenHeight() - height) / 2;
+        }
 
-      void render(float var1) {
-         if (this.texture != null && this.texture.isReady()) {
-            SpriteRenderer.instance.renderi(this.texture, this.x, this.y, this.width, this.height, 1.0F, 1.0F, 1.0F, var1, (Consumer)null);
-         }
+        /**
+         * Отрисовывает элемент с указанной прозрачностью.
+         * @param alpha прозрачность элемента
+         */
+        void render(float alpha) {
+            if (texture != null && texture.isReady()) {
+                SpriteRenderer.instance.renderi(texture, x, y, width, height, 1.0F, 1.0F, 1.0F, alpha, null);
+            }
 
-      }
-   }
+        }
+    }
 }

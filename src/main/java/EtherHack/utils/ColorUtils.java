@@ -2,14 +2,28 @@ package EtherHack.utils;
 
 import zombie.core.Color;
 
+/**
+ * Утилитарный класс, содержащий методы, относящиеся к цвету
+ */
 public class ColorUtils {
-   public static Color stringToColor(String var0) {
-      String[] var1 = var0.split(",");
-      return new Color(Integer.parseInt(var1[0]), Integer.parseInt(var1[1]), Integer.parseInt(var1[2]));
-   }
+    /**
+     * Преобразует строку в объект Color.
+     *
+     * @param str Строка, представляющая цвет в формате "R,G,B", где R, G и B - значения красного, зеленого и синего цветов соответственно.
+     * @return Объект Color, представляющий цвет, полученный из переданной строки.
+     */
+    public static Color stringToColor(String str) {
+        String[] rgb = str.split(",");
+        return new Color(Integer.parseInt(rgb[0]), Integer.parseInt(rgb[1]), Integer.parseInt(rgb[2]));
+    }
 
-   public static String colorToString(Color var0) {
-      int var10000 = var0.getRed();
-      return "" + var10000 + "," + var0.getGreen() + "," + var0.getBlue();
-   }
+    /**
+     * Преобразует объект Color в строку.
+     *
+     * @param color Объект Color, который нужно преобразовать в строку.
+     * @return Строка, представляющая цвет в формате "R,G,B", где R, G и B - значения красного, зеленого и синего цветов соответственно.
+     */
+    public static String colorToString(Color color) {
+        return color.getRed() + "," + color.getGreen() + "," + color.getBlue();
+    }
 }
