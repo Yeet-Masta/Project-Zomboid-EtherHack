@@ -1,0 +1,40 @@
+plugins {
+    id 'java'
+}
+
+compileJava.options.encoding = 'UTF-8'
+
+def properties = new Properties()
+file("src/main/resources/EtherHack/EtherHack.properties").withInputStream { properties.load(it) }
+
+group = 'EtherHack'
+version = properties.getProperty('version').replaceAll("'", "")
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.ow2.asm:asm:9.2'
+    implementation 'org.ow2.asm:asm-tree:9.2'
+
+    implementation files('libs/fmod.jar')
+    implementation files('libs/zombie.jar')
+    implementation files('libs/se.jar')
+    implementation files('libs/lwjglx.jar')
+}
+
+jar {
+    destinationDirectory = file('build')
+    archiveFileName = 'EtherHack-' + version + '.jar'
+
+    manifest {
+        attributes 'Main-Class': 'EtherHack.Main'
+    }
+
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+}
