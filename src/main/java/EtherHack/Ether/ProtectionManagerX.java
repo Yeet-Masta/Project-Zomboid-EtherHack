@@ -48,8 +48,28 @@ public class ProtectionManagerX {
                 "getAntiCheat12Status",
                 "getExtraTexture",
                 "hackAdminAccess",
-                // ... other functions ...
-                "safePlayerTeleport"
+                "isDisableFakeInfectionLevel",
+                "isDisableInfectionLevel",
+                "isDisableWetness",
+                "isEnableUnlimitedCarry",
+                "isOptimalWeight",
+                "isOptimalCalories",
+                "isPlayerInSafeTeleported",
+                "learnAllRecipes",
+                "requireExtra",
+                "safePlayerTeleport",
+                "toggleEnableUnlimitedCarry",
+                "toggleOptimalWeight",
+                "toggleOptimalCalories",
+                "vehicle",
+                "toggleDisableFakeInfectionLevel",
+                "toggleDisableInfectionLevel",
+                "toggleDisableWetness",
+                "repairPart",
+                "setPartCondition",
+                "repair",
+                "setContainerContentAmount",
+                "instanceof"
         )) {
             String obfuscatedName = generateObfuscatedName();
             protectedNames.add(obfuscatedName);

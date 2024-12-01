@@ -1,140 +1,128 @@
 /*package EtherHack.protection;
 
-import EtherHack.Ether.*;
-import EtherHack.utils.*;
-import EtherHack.GameClientWrapper;
+import zombie.core.Core;
 
-import java.lang.ref.WeakReference;
-import java.lang.reflect.Method;
-import java.net.URL;
-import java.net.URLClassLoader;
-import java.nio.ByteBuffer;
-import java.security.*;
-import java.util.*;
-import java.util.concurrent.*;
 import javax.crypto.*;
 import javax.crypto.spec.*;
-import zombie.GameWindow;
-import zombie.characters.IsoPlayer;
-import zombie.network.GameClient;
-import zombie.network.PacketTypes;
+import java.io.IOException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.security.*;
+import java.util.concurrent.*;
+import java.util.*;
+import java.nio.ByteBuffer;
+import EtherHack.utils.Logger;
+
+import static EtherHack.Ether.EtherLuaMethods.*;
+import static zombie.Lua.LuaManager.GlobalObject.getPlayer;
 
 public class EnhancedProtectionSystem {
     private static EnhancedProtectionSystem instance;
-    private final ProtectionManagerX protectionManager;
-    private final SafeAPI safeAPI;
-    private final GameClientWrapper gameClientWrapper;
     private final SecureRandom secureRandom;
-    private final ExecutorService executor;
-
-    // Core protection components
-    private final VirtualEnvironment virtualEnv;
+    private final Map<String, byte[]> keyStore;
+    private final ScheduledExecutorService scheduler;
+    private final PacketEncryptor packetEncryptor;
     private final MemoryProtector memoryProtector;
-    private final NetworkFilter networkFilter;
-    private final CodeProtector codeProtector;
+    private final CodeObfuscator codeObfuscator;
+
+    // Key rotation settings
+    private static final long KEY_ROTATION_INTERVAL = 30_000; // 30 seconds
+    private static final int KEY_SIZE = 256;
+    private String currentKey;
+    private String pendingKey;
 
     private EnhancedProtectionSystem() {
-        this.protectionManager = ProtectionManagerX.getInstance();
-        this.safeAPI = SafeAPI.getInstance();
-        this.gameClientWrapper = GameClientWrapper.get();
         this.secureRandom = new SecureRandom();
-        this.executor = Executors.newCachedThreadPool();
-
-        // Initialize protection components
-        this.virtualEnv = new VirtualEnvironment();
+        this.keyStore = new ConcurrentHashMap<>();
+        this.scheduler = Executors.newScheduledThreadPool(2);
+        this.packetEncryptor = new PacketEncryptor();
         this.memoryProtector = new MemoryProtector();
-        this.networkFilter = new NetworkFilter();
-        this.codeProtector = new CodeProtector();
-
-        initializeProtections();
+        this.codeObfuscator = new CodeObfuscator();
+        initializeProtection();
     }
 
-    public static EnhancedProtectionSystem getInstance() {
-        if (instance == null) {
-            instance = new EnhancedProtectionSystem();
+    private void initializeProtection() {
+        // Initialize key rotation
+        startKeyRotation();
+
+        // Install memory protection
+        memoryProtector.protectCriticalRegions();
+
+        // Initialize packet encryption
+        packetEncryptor.initialize();
+
+        // Start integrity monitoring
+        startIntegrityChecks();
+    }
+
+    private class PacketEncryptor {
+        private final Map<Integer, Cipher> cipherCache = new ConcurrentHashMap<>();
+        private final byte[] iv = new byte[16];
+
+        void initialize() {
+            secureRandom.nextBytes(iv);
         }
-        return instance;
-    }
 
-    // Virtual Environment for function isolation and redirection
-    private class VirtualEnvironment {
-        private final Map<String, Object> virtualGlobals = new ConcurrentHashMap<>();
-        private final Map<String, Method> methodCache = new ConcurrentHashMap<>();
-        private final ClassLoader isolatedLoader;
+        byte[] encryptPacket(byte[] data, String key) throws Exception {
+            Cipher cipher = getCipher(key, Cipher.ENCRYPT_MODE);
+            return cipher.doFinal(data);
+        }
 
-        public VirtualEnvironment() {
-            this.isolatedLoader = new URLClassLoader(new URL[0], null) {
-                @Override
-                protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
-                    if (isWhitelisted(name)) {
-                        return super.loadClass(name, resolve);
-                    }
-                    return loadModifiedClass(name);
+        byte[] decryptPacket(byte[] data, String key) throws Exception {
+            Cipher cipher = getCipher(key, Cipher.DECRYPT_MODE);
+            return cipher.doFinal(data);
+        }
+
+        private Cipher getCipher(String key, int mode) throws Exception {
+            int hash = Objects.hash(key, mode);
+            return cipherCache.computeIfAbsent(hash, k -> {
+                try {
+                    SecretKeySpec keySpec = new SecretKeySpec(key.getBytes(), "AES");
+                    GCMParameterSpec gcmSpec = new GCMParameterSpec(128, iv);
+                    Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+                    cipher.init(mode, keySpec, gcmSpec);
+                    return cipher;
+                } catch (Exception e) {
+                    throw new RuntimeException("Failed to initialize cipher", e);
                 }
-            };
-        }
-
-        public Object invokeFunction(String name, Object... args) {
-            try {
-                Method method = methodCache.computeIfAbsent(name, this::findMethod);
-                if (method != null) {
-                    return method.invoke(null, args);
-                }
-            } catch (Exception e) {
-                Logger.printLog("Error invoking function: " + e.getMessage());
-            }
-            return null;
-        }
-
-        private Method findMethod(String name) {
-            // Search in protected classes first
-            String obfuscatedName = safeAPI.getSafeName(name);
-            try {
-                return findMethodInClasses(obfuscatedName);
-            } catch (Exception e) {
-                Logger.printLog("Error finding method: " + e.getMessage());
-                return null;
-            }
-        }
-
-        private boolean isWhitelisted(String className) {
-            // Add your whitelist checks here
-            return className.startsWith("java.") ||
-                    className.startsWith("zombie.") ||
-                    className.startsWith("EtherHack.");
+            });
         }
     }
 
-    // Memory Protection System
     private class MemoryProtector {
         private final Map<Long, byte[]> protectedRegions = new ConcurrentHashMap<>();
         private final Set<Long> monitoredAddresses = new ConcurrentSkipListSet<>();
 
-        public void protectMemoryRegion(long address, int size) {
-            try {
-                byte[] originalData = new byte[size];
-                readMemory(address, originalData);
-                protectedRegions.put(address, originalData);
-
-                // Apply XOR mask
-                byte[] mask = generateMask(size);
-                applyMask(address, mask);
-
-                monitoredAddresses.add(address);
-            } catch (Exception e) {
-                Logger.printLog("Error protecting memory: " + e.getMessage());
-            }
+        void protectCriticalRegions() {
+            // Protect key areas of memory
+            protectRegion(getCodeBase(), getCodeSize());
+            protectRegion(getStackBase(), getStackSize());
         }
 
-        public void unprotectRegion(long address) {
-            byte[] original = protectedRegions.remove(address);
-            if (original != null) {
-                writeMemory(address, original);
-                monitoredAddresses.remove(address);
-            }
+        private void protectRegion(long address, int size) {
+            byte[] originalContent = new byte[size];
+            readMemory(address, originalContent);
+
+            // Store original content
+            protectedRegions.put(address, originalContent);
+
+            // Apply XOR mask to hide content
+            byte[] mask = generateMask(size);
+            applyMask(address, mask);
+
+            monitoredAddresses.add(address);
         }
 
-        public void checkIntegrity() {
+        private byte[] generateMask(int size) {
+            byte[] mask = new byte[size];
+            secureRandom.nextBytes(mask);
+            return mask;
+        }
+
+        void checkIntegrity() {
             for (Long address : monitoredAddresses) {
                 byte[] original = protectedRegions.get(address);
                 if (original != null) {
@@ -143,176 +131,345 @@ public class EnhancedProtectionSystem {
                     if (!Arrays.equals(original, current)) {
                         // Memory tampering detected - restore original
                         writeMemory(address, original);
-                        Logger.printLog("Memory integrity violation detected and corrected");
+                        handleTamperingDetected();
                     }
                 }
             }
         }
 
-        private byte[] generateMask(int size) {
-            byte[] mask = new byte[size];
-            secureRandom.nextBytes(mask);
-            return mask;
-        }
+        // Native method declarations
+        private native void readMemory(long address, byte[] buffer);
+        private native void writeMemory(long address, byte[] data);
+        private native long getCodeBase();
+        private native int getCodeSize();
+        private native long getStackBase();
+        private native int getStackSize();
     }
 
-    // Network Traffic Filter
-    private class NetworkFilter {
-        private final Queue<PacketWrapper> packetQueue = new ConcurrentLinkedQueue<>();
-        private final Map<Byte, PacketTransform> transformers = new ConcurrentHashMap<>();
-
-        public void interceptPacket(ByteBuffer buffer) {
-            try {
-                byte packetType = buffer.get(0);
-                PacketTransform transform = transformers.get(packetType);
-
-                if (transform != null) {
-                    buffer = transform.transformPacket(buffer);
-                }
-
-                if (shouldQueuePacket(packetType)) {
-                    queuePacket(new PacketWrapper(buffer, packetType));
-                } else {
-                    forwardPacket(buffer);
-                }
-            } catch (Exception e) {
-                Logger.printLog("Error intercepting packet: " + e.getMessage());
-            }
-        }
-
-        private boolean shouldQueuePacket(byte type) {
-            // Add logic for which packets should be queued
-            return type == PacketTypes.PacketType.Validate.getId() ||
-                    type == PacketTypes.PacketType.PlayerConnect.getId();
-        }
-
-        private void queuePacket(PacketWrapper packet) {
-            packetQueue.offer(packet);
-            schedulePacketProcessing(packet);
-        }
-
-        private void schedulePacketProcessing(PacketWrapper packet) {
-            executor.schedule(() -> {
-                if (packetQueue.remove(packet)) {
-                    forwardPacket(packet.getData());
-                }
-            }, 50 + secureRandom.nextInt(200), TimeUnit.MILLISECONDS);
-        }
-    }
-
-    // Code Protection System
-    private class CodeProtector {
+    private class CodeObfuscator {
         private final Map<String, byte[]> encryptedCode = new ConcurrentHashMap<>();
         private final Map<String, byte[]> keys = new ConcurrentHashMap<>();
 
-        public void protectMethod(Method method) {
-            try {
-                byte[] bytecode = getMethodBytecode(method);
-                byte[] key = generateKey();
-                byte[] encrypted = encryptBytecode(bytecode, key);
+        void obfuscateMethod(String className, String methodName) throws Exception {
+            byte[] bytecode = getBytecode(className, methodName);
+            byte[] key = generateKey();
+            byte[] encrypted = encryptBytecode(bytecode, key);
 
-                String methodId = method.getDeclaringClass().getName() + "." + method.getName();
-                encryptedCode.put(methodId, encrypted);
-                keys.put(methodId, key);
+            String id = className + "." + methodName;
+            encryptedCode.put(id, encrypted);
+            keys.put(id, key);
 
-                // Replace with stub
-                replaceWithStub(method);
-            } catch (Exception e) {
-                Logger.printLog("Error protecting method: " + e.getMessage());
-            }
+            // Replace original bytecode with stub
+            installStub(className, methodName);
         }
 
-        public byte[] getDecryptedBytecode(String methodId) {
-            try {
-                byte[] encrypted = encryptedCode.get(methodId);
-                byte[] key = keys.get(methodId);
-                if (encrypted != null && key != null) {
-                    return decryptBytecode(encrypted, key);
-                }
-            } catch (Exception e) {
-                Logger.printLog("Error decrypting bytecode: " + e.getMessage());
+        byte[] getDecryptedBytecode(String id) throws Exception {
+            byte[] encrypted = encryptedCode.get(id);
+            byte[] key = keys.get(id);
+            if (encrypted != null && key != null) {
+                return decryptBytecode(encrypted, key);
             }
             return null;
         }
 
         private byte[] encryptBytecode(byte[] bytecode, byte[] key) throws Exception {
-            SecretKeySpec keySpec = new SecretKeySpec(key, "AES");
             Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-            cipher.init(Cipher.ENCRYPT_MODE, keySpec);
+            cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(key, "AES"));
             return cipher.doFinal(bytecode);
         }
 
         private byte[] decryptBytecode(byte[] encrypted, byte[] key) throws Exception {
-            SecretKeySpec keySpec = new SecretKeySpec(key, "AES");
             Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-            cipher.init(Cipher.DECRYPT_MODE, keySpec);
+            cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(key, "AES"));
             return cipher.doFinal(encrypted);
         }
-    }
 
-    // Main protection initialization
-    private void initializeProtections() {
-        // Protect critical methods
-        protectCoreMethods();
-
-        // Start integrity checking
-        startIntegrityChecks();
-
-        // Initialize network protection
-        setupNetworkProtection();
-
-        Logger.printLog("Enhanced protection system initialized");
-    }
-
-    private void protectCoreMethods() {
-        // Add core methods to protect
-        Method[] methods = Arrays.asList(
-                getMethod(EtherAPI.class, "loadAPI"),
-                getMethod(SafeAPI.class, "generateVerificationKey"),
-                getMethod(ProtectionManagerX.class, "handlePacket")
-        ).toArray(new Method[0]);
-
-        for (Method method : methods) {
-            codeProtector.protectMethod(method);
-            memoryProtector.protectMemoryRegion(getMethodAddress(method), getMethodSize(method));
+        private byte[] generateKey() {
+            byte[] key = new byte[32];
+            secureRandom.nextBytes(key);
+            return key;
         }
+
+        // Implementation details
+        private native byte[] getBytecode(String className, String methodName);
+        private native void installStub(String className, String methodName);
+    }
+
+    private void startKeyRotation() {
+        currentKey = generateKey();
+        pendingKey = generateKey();
+
+        scheduler.scheduleAtFixedRate(() -> {
+            try {
+                rotateKeys();
+            } catch (Exception e) {
+                handleKeyRotationError(e);
+            }
+        }, KEY_ROTATION_INTERVAL, KEY_ROTATION_INTERVAL, TimeUnit.MILLISECONDS);
+    }
+
+    private void rotateKeys() {
+        // Move pending key to current
+        currentKey = pendingKey;
+        // Generate new pending key
+        pendingKey = generateKey();
+        // Clean old keys from store
+        cleanKeyStore();
+    }
+
+    private String generateKey() {
+        byte[] keyBytes = new byte[KEY_SIZE / 8];
+        secureRandom.nextBytes(keyBytes);
+        return Base64.getEncoder().encodeToString(keyBytes);
     }
 
     private void startIntegrityChecks() {
-        executor.scheduleAtFixedRate(() -> {
-            memoryProtector.checkIntegrity();
-        }, 1, 1, TimeUnit.SECONDS);
+        scheduler.scheduleAtFixedRate(() -> {
+            try {
+                memoryProtector.checkIntegrity();
+                verifyCodeIntegrity();
+                verifyConfigIntegrity();
+            } catch (Exception e) {
+                handleIntegrityCheckError(e);
+            }
+        }, 1000, 1000, TimeUnit.MILLISECONDS);
     }
 
-    private void setupNetworkProtection() {
-        // Install network hooks
-        networkFilter.transformers.put(PacketTypes.PacketType.Validate.getId(),
-                buffer -> sanitizeValidationPacket(buffer));
+    private void applyMask(long address, byte[] mask) {
+        // Read current memory content
+        byte[] content = new byte[mask.length];
+        readMemory(address, content);
 
-        networkFilter.transformers.put(PacketTypes.PacketType.PlayerConnect.getId(),
-                buffer -> sanitizeConnectPacket(buffer));
+        // Apply XOR mask
+        for (int i = 0; i < content.length; i++) {
+            content[i] ^= mask[i];
+        }
+
+        // Write back masked content
+        writeMemory(address, content);
     }
 
-    // Helper methods for working with the protected environment
-    public Object invokeProtectedFunction(String name, Object... args) {
-        return virtualEnv.invokeFunction(name, args);
-    }
-
-    public void addProtectedMethod(Method method) {
-        codeProtector.protectMethod(method);
-    }
-
-    public void protectPacket(ByteBuffer buffer) {
-        networkFilter.interceptPacket(buffer);
-    }
-
-    // Clean up resources
-    public void shutdown() {
-        executor.shutdown();
+    private void verifyCodeIntegrity() {
         try {
-            executor.awaitTermination(5, TimeUnit.SECONDS);
+            // Check critical class files
+            String[] criticalClasses = {
+                    "EtherHack.Ether.EtherAPI",
+                    "EtherHack.Ether.SafeAPI",
+                    "EtherHack.protection.EnhancedProtectionSystem"
+            };
+
+            for (String className : criticalClasses) {
+                Class<?> clazz = Class.forName(className);
+
+                // Get class bytecode and verify its hash
+                byte[] bytecode = getBytecode(className);
+                String currentHash = calculateHash(bytecode);
+                String storedHash = getStoredHash(className);
+
+                if (!currentHash.equals(storedHash)) {
+                    handleCodeTampering(className);
+                }
+
+                // Verify method bytecode for critical methods
+                Method[] methods = clazz.getDeclaredMethods();
+                for (Method method : methods) {
+                    if (isProtectedMethod(method)) {
+                        byte[] methodBytecode = getMethodBytecode(method);
+                        String methodHash = calculateHash(methodBytecode);
+                        String storedMethodHash = getStoredMethodHash(className, method.getName());
+
+                        if (!methodHash.equals(storedMethodHash)) {
+                            handleMethodTampering(className, method.getName());
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            handleIntegrityCheckError(e);
+        }
+    }
+
+    private void verifyConfigIntegrity() {
+        try {
+            // Verify config file integrity
+            String[] configFiles = {
+                    "EtherHack/config/startup.properties",
+                    "EtherHack/translations/EN.txt"
+            };
+
+            for (String configFile : configFiles) {
+                // Read file content
+                byte[] content = readFileContent(configFile);
+
+                // Calculate current hash
+                String currentHash = calculateHash(content);
+
+                // Get stored hash
+                String storedHash = getStoredConfigHash(configFile);
+
+                if (!currentHash.equals(storedHash)) {
+                    handleConfigTampering(configFile);
+                }
+            }
+
+            // Verify runtime configuration integrity
+            verifyRuntimeConfig();
+
+        } catch (Exception e) {
+            handleIntegrityCheckError(e);
+        }
+    }
+
+    private void verifyRuntimeConfig() {
+        // Check critical runtime settings
+        boolean debugMode = Core.bDebug;
+        boolean godMode = getPlayer().isGodMod();
+        boolean invisMode = getPlayer().isInvisible();
+
+        // Compare with expected states
+        if (debugMode != isBypassDebugMode()) {
+            handleRuntimeConfigTampering("debugMode");
+        }
+
+        if (godMode != isEnableGodMode()) {
+            handleRuntimeConfigTampering("godMode");
+        }
+
+        if (invisMode != isEnableInvisible()) {
+            handleRuntimeConfigTampering("invisMode");
+        }
+    }
+
+    private String calculateHash(byte[] data) throws NoSuchAlgorithmException {
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        byte[] hash = digest.digest(data);
+        return Base64.getEncoder().encodeToString(hash);
+    }
+
+    private byte[] readFileContent(String filePath) throws IOException {
+        Path path = Paths.get(filePath);
+        return Files.readAllBytes(path);
+    }
+
+    private String getStoredHash(String className) {
+        // Implement secure hash storage/retrieval
+        return keyStore.containsKey(className) ?
+                Base64.getEncoder().encodeToString(keyStore.get(className)) : null;
+    }
+
+    private String getStoredMethodHash(String className, String methodName) {
+        // Implement secure method hash storage/retrieval
+        String key = className + "." + methodName;
+        return keyStore.containsKey(key) ?
+                Base64.getEncoder().encodeToString(keyStore.get(key)) : null;
+    }
+
+    private String getStoredConfigHash(String configFile) {
+        // Implement secure config hash storage/retrieval
+        return keyStore.containsKey(configFile) ?
+                Base64.getEncoder().encodeToString(keyStore.get(configFile)) : null;
+    }
+
+    private boolean isProtectedMethod(Method method) {
+        // Add logic to determine if method should be protected
+        return method.isAnnotationPresent(ProtectedMethod.class) ||
+                Modifier.isNative(method.getModifiers()) ||
+                method.getName().contains("protect") ||
+                method.getName().contains("secure");
+    }
+
+    private void handleCodeTampering(String className) {
+        // Implement response to code tampering
+        Logger.printLog("Code tampering detected in class: " + className);
+        // Add additional protection measures
+    }
+
+    private void handleMethodTampering(String className, String methodName) {
+        // Implement response to method tampering
+        Logger.printLog("Method tampering detected: " + className + "." + methodName);
+        // Add additional protection measures
+    }
+
+    private void handleConfigTampering(String configFile) {
+        // Implement response to config tampering
+        Logger.printLog("Config tampering detected: " + configFile);
+        // Add additional protection measures
+    }
+
+    private void handleRuntimeConfigTampering(String configName) {
+        // Implement response to runtime config tampering
+        Logger.printLog("Runtime config tampering detected: " + configName);
+        // Add additional protection measures
+    }
+
+    private native void readMemory(long address, byte[] buffer);
+    private native void writeMemory(long address, byte[] data);
+    private native byte[] getBytecode(String className);
+    private native byte[] getMethodBytecode(Method method);
+
+    public byte[] encryptPacket(byte[] data) throws Exception {
+        return packetEncryptor.encryptPacket(data, currentKey);
+    }
+
+    public byte[] decryptPacket(byte[] data) throws Exception {
+        try {
+            // Try current key first
+            return packetEncryptor.decryptPacket(data, currentKey);
+        } catch (Exception e) {
+            // Fall back to pending key
+            return packetEncryptor.decryptPacket(data, pendingKey);
+        }
+    }
+
+    public void protectMethod(String className, String methodName) {
+        try {
+            codeObfuscator.obfuscateMethod(className, methodName);
+        } catch (Exception e) {
+            handleProtectionError(e);
+        }
+    }
+
+    // Error handling methods
+    private void handleTamperingDetected() {
+        // Implement appropriate response
+    }
+
+    private void handleKeyRotationError(Exception e) {
+        // Handle key rotation failures
+    }
+
+    private void handleIntegrityCheckError(Exception e) {
+        // Handle integrity check failures
+    }
+
+    private void handleProtectionError(Exception e) {
+        // Handle protection system errors
+    }
+
+    // Cleanup methods
+    private void cleanKeyStore() {
+        long now = System.currentTimeMillis();
+        keyStore.entrySet().removeIf(entry ->
+                now - entry.getValue()[0] > KEY_ROTATION_INTERVAL * 2);
+    }
+
+    public static EnhancedProtectionSystem getInstance() {
+        if (instance == null) {
+            synchronized (EnhancedProtectionSystem.class) {
+                if (instance == null) {
+                    instance = new EnhancedProtectionSystem();
+                }
+            }
+        }
+        return instance;
+    }
+
+    public void shutdown() {
+        scheduler.shutdown();
+        try {
+            scheduler.awaitTermination(5, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
-            Logger.printLog("Error shutting down protection system: " + e.getMessage());
+            Thread.currentThread().interrupt();
         }
     }
 }*/
