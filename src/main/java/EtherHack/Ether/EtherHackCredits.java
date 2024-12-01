@@ -23,7 +23,7 @@ public class EtherHackCredits implements IOnUIElementPreRenderListener {
     public void onCall() {
         Core coreInstance = Core.getInstance();
         float screenHeight = (float)coreInstance.getScreenHeight();
-        Rendering.DrawText(Info.CHEAT_CREDITS_TITLE, UIFont.Small, 15.0f, screenHeight - 30.0f, 255.0f, 255.0f, 255.0f, 255.0f);
-        Rendering.DrawText(Info.CHEAT_CREDITS_AUTHOR, UIFont.Small,15.0f, screenHeight - 15.0f, 255.0f, 255.0f, 255.0f, 255.0f);
+        Rendering.drawText(Info.CHEAT_CREDITS_TITLE, UIFont.Small, 15.0f, screenHeight - 30.0f, 255.0f, 255.0f, 255.0f, 255.0f);
+        Rendering.drawText(Info.CHEAT_CREDITS_AUTHOR, UIFont.Small,15.0f, screenHeight - 15.0f, 255.0f, 255.0f, 255.0f, 255.0f);
     }
 }

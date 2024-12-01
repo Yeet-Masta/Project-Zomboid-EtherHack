@@ -24,7 +24,7 @@ public class EtherInitializer implements IOnUIElementPostRenderListener {
     public void onCall() {
         if (isAPIInitialized.compareAndSet(false, true) || (isAPIInitialized.get() && !LuaManager.loaded.contains(EtherMain.getInstance().etherGUI.pathToLuaMainFile))){
             Logger.printLog("Initializing EtherAPI...");
-            EtherMain.getInstance().etherAPI.init();
+            EtherMain.getInstance().etherMain.init();
         }
 
         EtherMain.getInstance().etherGUI.loadLuaUI();

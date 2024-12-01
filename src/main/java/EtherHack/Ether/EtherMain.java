@@ -11,6 +11,8 @@ public class EtherMain {
     public EtherCredits etherCredits;
     public EtherLuaManager etherLuaManager;
     public EtherAPI etherAPI;
+    public EtherGUI etherGUI;
+    public EtherLogo etherMain;
 
     /**
      * Предотвращение создания нового экземпляра класса EtherMain из вне.
