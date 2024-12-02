@@ -9,7 +9,7 @@
 </p>
 
 ## NOTICE!!!
-There are repo's going around pretending to be EtherHack or just a PZ cheat (https://github.com/ayhantunay/Project-Zomboid-Cheat) and I HIGHLY ADVISE YOU DON"T DOWNLOAD THESE!!! They are asking you to download completely arbitrary DLL files and isable your fucking anti-virus!!! Please for the love of god, don't download this shit. Use your head!!!
+There are repo's going around pretending to be EtherHack or just a PZ cheat (https://github.com/ayhantunay/Project-Zomboid-Cheat) and I HIGHLY ADVISE YOU DON"T DOWNLOAD THESE!!! They are asking you to download completely arbitrary DLL files and disable your fucking anti-virus!!! Please for the love of god, don't download this shit. Use your head!!!
 
 This is a cheat written in Java(API) and LUA(GUI) for Project Zomboid. It is aimed at providing the game with additional functionality that allows users to get some benefits. Please use responsibly and understand the consequences that may arise as a result of improper use.
 The performance of the cheat was tested on the latest version of the game `41.78.16 (Steam)` (July 09, 2023).
