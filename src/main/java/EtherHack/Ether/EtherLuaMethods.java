@@ -106,25 +106,34 @@ public class EtherLuaMethods {
    }
 
    @LuaMethod(
-      name = "getConfigList",
-      global = true
+           name = "getConfigList",
+           global = true
    )
-   public static ArrayList getConfigList() {
-      ArrayList var0 = new ArrayList();
+   public static ArrayList<String> getConfigList() {
+      ArrayList<String> configFiles = new ArrayList<>();
 
       try {
-         Path var1 = Paths.get("EtherHack/config");
-         List var2 = Files.list(var1).filter(EtherLuaMethods::lambda$getConfigList$0).toList();
+         Path configFolderPath = Paths.get("EtherHack/config");
 
-          for (Object o : var2) {
-              Path var4 = (Path) o;
-              String var5 = var4.getFileName().toString().replace(".properties", "");
-              var0.add(var5);
-          }
+         // Create directories if they don't exist
+         if (!Files.exists(configFolderPath)) {
+            Files.createDirectories(configFolderPath);
+            return configFiles; // Return empty list since directory was just created
+         }
 
-         return var0;
-      } catch (IOException var6) {
-         Logger.printLog("An error occurred while getting the list of config files: " + String.valueOf(var6));
+         List<Path> fileList = Files.list(configFolderPath)
+                 .filter(file -> file.toString().endsWith(".properties"))
+                 .toList();
+
+         for(Path filePath: fileList){
+            String fileName = filePath.getFileName().toString().replace(".properties","");
+            configFiles.add(fileName);
+         }
+
+         return configFiles;
+
+      } catch (IOException e) {
+         Logger.printLog("An error occurred while getting the list of config files: " + e);
          return null;
       }
    }
@@ -1185,9 +1194,6 @@ public class EtherLuaMethods {
       return EtherMain.getInstance().etherAPI.mainUIAccentColor;
    }
 
-   private static boolean lambda$getConfigList$0(Path var0) {
-      return var0.toString().endsWith(".properties");
-   }
    protected void cleanMethodCache() {
       methodCache.clear();
    }
