@@ -175,4 +175,4 @@ This project is under `MIT License` - see the LICENSE file for details.
 ## Contact
 
 If you have any questions, feel free to reach out to me at `spaceguy234@gmail.com`
-Also here's the unofficial official [https://discord.gg/4CMAVqEey2](discord) server
+Also here's the unofficial official [discord](https://discord.gg/4CMAVqEey2) server
