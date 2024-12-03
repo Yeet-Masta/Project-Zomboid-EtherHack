@@ -8,12 +8,15 @@
   <img src="https://img.shields.io/github/issues/Yeet-Masta/Project-Zomboid-EtherHack" alt="GitHub issues">
 </p>
 
+## NOTICE!!!
+There are repo's going around pretending to be EtherHack or just a PZ cheat (https://github.com/ayhantunay/Project-Zomboid-Cheat) and I HIGHLY ADVISE YOU DON"T DOWNLOAD THESE!!! They are asking you to download completely arbitrary DLL files and disable your fucking anti-virus!!! Please for the love of god, don't download this shit. Use your head!!!
+
 This is a cheat written in Java(API) and LUA(GUI) for Project Zomboid. It is aimed at providing the game with additional functionality that allows users to get some benefits. Please use responsibly and understand the consequences that may arise as a result of improper use.
 The performance of the cheat was tested on the latest version of the game `41.78.16 (Steam)` (July 09, 2023).
 
 Edit: Finally after all this time! the project has been restored!!! I know the code quality is shit, but lest be honest it's better than nothing. And as a wise man once said "It Just Works" soooooooo. But, if any of you guys want to contribute, PLEASE! my dumb ass can't code that well and I really want this project to live on so any contrabutions would be helpful and apreaciated! Also, FUCK https://github.com/asledgehammer/EtherHammer !!! EAT SHIT!
 
-Warning!!! Please out [this github repo](https://github.com/Yeet-Masta/Project-Zomboid/tree/arkiease)
+Warning!!! Please check out [this github repo](https://github.com/Yeet-Masta/Project-Zomboid/tree/arkiease)
 
 [Check this out!!!](https://www.unknowncheats.me/forum/other-mmorpg-and-strategy/645408-project-zomboid-cheat-valkur.html) This is freaking dope!!!
 
