@@ -84,7 +84,7 @@ This section will provide information on how to get a local copy of the project 
 
 This tool requires:
 
--   [Java 17](https://www.oracle.com/java/technologies/downloads/) or newer
+-   [Java 17]([https://www.oracle.com/java/technologies/downloads/](https://adoptium.net/temurin/releases/?version=17)) or newer
 -   Steam copy of [Project Zomboid](https://store.steampowered.com/app/108600/Project_Zomboid/)
 
 ### Installation
