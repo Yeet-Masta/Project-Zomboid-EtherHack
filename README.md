@@ -16,6 +16,8 @@ The performance of the cheat was tested on the latest version of the game `41.78
 
 Edit: Finally after all this time! the project has been restored!!! I know the code quality is shit, but lest be honest it's better than nothing. And as a wise man once said "It Just Works" soooooooo. But, if any of you guys want to contribute, PLEASE! my dumb ass can't code that well and I really want this project to live on so any contrabutions would be helpful and apreaciated! Also, FUCK https://github.com/asledgehammer/EtherHammer !!! EAT SHIT!
 
+Edit edit: wtf is [this???](https://imgur.com/a/rat1-v5T7l31)
+
 Warning!!! Please check out [this github repo](https://github.com/Yeet-Masta/Project-Zomboid/tree/arkiease)
 
 [Check this out!!!](https://www.unknowncheats.me/forum/other-mmorpg-and-strategy/645408-project-zomboid-cheat-valkur.html) This is freaking dope!!!
@@ -82,7 +84,7 @@ This section will provide information on how to get a local copy of the project 
 
 This tool requires:
 
--   [Java 17](https://www.oracle.com/java/technologies/downloads/) or newer
+-   [Java 17]([https://www.oracle.com/java/technologies/downloads/](https://adoptium.net/temurin/releases/?version=17)) or newer
 -   Steam copy of [Project Zomboid](https://store.steampowered.com/app/108600/Project_Zomboid/)
 
 ### Installation
