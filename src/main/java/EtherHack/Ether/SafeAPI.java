@@ -2,6 +2,7 @@ package EtherHack.Ether;
 
 import zombie.characters.IsoPlayer;
 
+import java.security.SecureRandom;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -11,21 +12,25 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class SafeAPI {
     private static SafeAPI instance;
+    private final EnhancedSafeAPI enhancedAPI;
     private final Map<String, String> obfuscatedNames = new ConcurrentHashMap<>();
     private final Map<String, Long> methodTimestamps = new ConcurrentHashMap<>();
-    private final Random random = new Random();
+    private final Random random = new SecureRandom();
     private final Map<String, String> currentKeys = new ConcurrentHashMap<>();
-
-    // Time in ms before a method name is rotated
-    private static final long METHOD_LIFETIME = 10_000; // 30 seconds
+    private static final long METHOD_LIFETIME = 10_000;
 
     private SafeAPI() {
+        this.enhancedAPI = EnhancedSafeAPI.getInstance();
         initializeObfuscation();
     }
 
     public static SafeAPI getInstance() {
         if (instance == null) {
-            instance = new SafeAPI();
+            synchronized (SafeAPI.class) {
+                if (instance == null) {
+                    instance = new SafeAPI();
+                }
+            }
         }
         return instance;
     }
@@ -118,10 +123,19 @@ public class SafeAPI {
 
     // Clean global table for handshake
     public List<String> cleanGlobalTable(List<String> globals) {
-        Set<String> protected_names = new HashSet<>(obfuscatedNames.values());
+        Set<String> protectedNames = new HashSet<>(obfuscatedNames.values());
         return globals.stream()
-                .filter(name -> !protected_names.contains(name))
+                .filter(name -> !protectedNames.contains(name))
                 .collect(java.util.stream.Collectors.toList());
+    }
+
+    // Method to handle module-specific actions
+    public boolean handleModuleAction(String moduleName, String action, Map<String, Object> params) {
+        if (enhancedAPI.validateModuleAction(moduleName, action, params)) {
+            enhancedAPI.transformModuleAction(moduleName, action, params);
+            return true;
+        }
+        return false;
     }
 
     // Generate a unique key for method verification

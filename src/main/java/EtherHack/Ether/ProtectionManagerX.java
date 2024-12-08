@@ -1,5 +1,6 @@
 package EtherHack.Ether;
 
+import EtherHack.protection.PacketTransformManager;
 import EtherHack.utils.Logger;
 
 import java.lang.ref.WeakReference;
@@ -16,6 +17,8 @@ import zombie.core.network.ByteBufferWriter;
 import zombie.network.PacketTypes;
 import zombie.network.GameClient;
 
+import static zombie.network.GameClient.connection;
+
 public class ProtectionManagerX {
     private static ProtectionManagerX instance;
     private final SecureRandom random = new SecureRandom();
@@ -25,11 +28,13 @@ public class ProtectionManagerX {
     private static final String MODULE_ID = "EtherHammerX";
     private final Map<String, Long> keyTimestamps = new ConcurrentHashMap<>();
     private final Map<String, String> responseCache = new ConcurrentHashMap<>();
+    private final PacketTransformManager packetTransformManager;
     private String currentKey;
     private String pendingKey;
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
     public ProtectionManagerX() {
+        this.packetTransformManager = PacketTransformManager.getInstance();
         initializeProtection();
     }
 
@@ -40,6 +45,8 @@ public class ProtectionManagerX {
         createVirtualGlobals();
         // Start key rotation
         startKeyRotation();
+        // Add packet transformation initialization
+        setupPacketTransformation();
     }
 
     private void storeFunctions() {
@@ -74,6 +81,24 @@ public class ProtectionManagerX {
             String obfuscatedName = generateObfuscatedName();
             protectedNames.add(obfuscatedName);
             realFunctions.put(obfuscatedName, createProxyFunction(funcName));
+        }
+    }
+
+    private void setupPacketTransformation() {
+        // Hook into GameClient's packet handling
+        try {
+            // Override packet handling to use our transformation system
+            ByteBufferWriter writer = connection.startPacket();
+            PacketTypes.PacketType.PlayerUpdate.doPacket(writer);
+
+            // Transform the packet before sending
+            packetTransformManager.transformAndQueuePacket(
+                    PacketTypes.PacketType.PlayerUpdate,
+                    writer.bb,
+                    connection
+            );
+        } catch (Exception e) {
+            Logger.printLog("Failed to setup packet transformation: " + e.getMessage());
         }
     }
 
@@ -142,15 +167,30 @@ public class ProtectionManagerX {
         return null; // Replace with actual execution
     }
 
-    // Method to handle EtherHammerX packets
-    public void handlePacket(String command, Map<String, Object> data) {
+        private ByteBuffer transformIncomingPacket(String command, Map<String, Object> data) {
+        ByteBuffer buffer = mapToBuffer(data);
+        PacketTypes.PacketType packetType = getPacketTypeForCommand(command);
+
+        if (packetType != null) {
+            return packetTransformManager.transformAndQueuePacket(
+                    packetType,
+                    buffer,
+                    GameClient.connection
+            );
+        }
+
+        return buffer;
+    }
+
+    private PacketTypes.PacketType getPacketTypeForCommand(String command) {
+        // Map command strings to PacketTypes
         switch(command) {
             case "join_request":
-                handleJoinRequest(data);
-                break;
+                return PacketTypes.PacketType.PlayerConnect;
             case "heartbeat_request":
-                handleHeartbeatRequest(data);
-                break;
+                return PacketTypes.PacketType.Validate;
+            default:
+                return null;
         }
     }
 
@@ -167,6 +207,8 @@ public class ProtectionManagerX {
     }
 
     public void shutdown() {
+        packetTransformManager.shutdown();
+        //super.shutdown();
         scheduler.shutdown();
     }
 
@@ -209,6 +251,26 @@ public class ProtectionManagerX {
                 !keyTimestamps.containsKey(key)
         );
     }
+
+    /*
+    // Method to handle EtherHammerX packets
+    public void handlePacket(String command, Map<String, Object> data) {
+        // Transform incoming packets
+        ByteBuffer transformedData = transformIncomingPacket(command, data);
+
+        // Process the transformed packet
+        switch(command) {
+            case "join_request":
+                handleJoinRequest(transformedData);
+                break;
+            case "heartbeat_request":
+                handleHeartbeatRequest(transformedData);
+                break;
+            case "key_rotation":
+                handleKeyRotation(transformedData);
+                break;
+        }
+    }*/
 
     public void handleNetworkPacket(String command, Map<String, Object> data) {
         try {
@@ -273,10 +335,10 @@ public class ProtectionManagerX {
 
     private void sendPacket(String command, Map<String, Object> data) {
         try {
-            if (GameClient.connection == null) return;
+            if (connection == null) return;
 
             // Start ModData packet
-            ByteBufferWriter writer = GameClient.connection.startPacket();
+            ByteBufferWriter writer = connection.startPacket();
             PacketTypes.PacketType.PlayerUpdateReliable.doPacket(writer);
 
             // Write module ID and command
@@ -312,7 +374,7 @@ public class ProtectionManagerX {
             }
 
             // Send the packet
-            PacketTypes.PacketType.PlayerUpdate.send(GameClient.connection);
+            PacketTypes.PacketType.PlayerUpdate.send(connection);
 
         } catch (Exception e) {
             Logger.printLog("Error sending packet: " + e.getMessage());
