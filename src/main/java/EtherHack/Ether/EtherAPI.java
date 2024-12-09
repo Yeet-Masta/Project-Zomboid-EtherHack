@@ -400,7 +400,7 @@ public class EtherAPI {
 
    // Implement packet handlers
    public void handleNetworkPacket(String command, Map<String, Object> data) {
-      protectionManager.handleNetworkPacket(command, data);
+      protectionManager.handlePacket(command, data);
    }
 
    private void initializeProtectedState() {
