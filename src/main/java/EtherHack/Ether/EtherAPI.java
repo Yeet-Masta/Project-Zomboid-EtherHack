@@ -851,6 +851,7 @@ public class EtherAPI {
             float var6 = this.playersUIColor.r;
             float var7 = this.playersUIColor.g;
             float var8 = this.playersUIColor.b;
+
             if (var2 != null || !var2.isEmpty()) {
                Iterator var9 = var2.iterator();
 
@@ -879,7 +880,8 @@ public class EtherAPI {
                      Rendering.drawTextCenterWithShadow(EtherMain.getInstance().etherTranslator.getTranslate("UI_VisualsDraws_SecondaryHand") + var14, UIFont.Small, var11, var12 + 80.0F, var6, var7, var8, var5);
                   }
 
-                  if (!var10.isLocalPlayer() && this.isVisualDrawLineToPlayers && PlayerUtils.getDistanceBetweenPlayers(var1, var10) < 150.0F) {
+                  if (!var10.isLocalPlayer() && this.isVisualDrawLineToPlayers) {
+                     // Remove distance check to show all players
                      int var19 = (int)PlayerUtils.getDistanceBetweenPlayers(var10, var1);
                      int var20 = Math.max(30, Math.min(150, var19));
                      float var15 = (float)Math.sqrt(Math.pow((double)(var11 - var3), 2.0) + Math.pow((double)(var12 - var4), 2.0));

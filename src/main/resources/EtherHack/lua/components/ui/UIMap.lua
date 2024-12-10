@@ -23,7 +23,7 @@ function UIMap:restoreSettings()
 		centerY = self.localPlayer:getY()
 		zoom = 18;
 	end
-	
+
 	self.mapAPI:centerOn(centerX, centerY)
 	self.mapAPI:setZoom(zoom)
 	self.mapAPI:setBoolean("Isometric", isometric)
@@ -32,7 +32,7 @@ end
 --*********************************************************
 --* Отрисовка символов
 --*********************************************************
-function UIMap:onToggleSymbols() 
+function UIMap:onToggleSymbols()
 
 end
 --*********************************************************
@@ -59,8 +59,8 @@ end
 --*********************************************************
 --* Отрисовка
 --*********************************************************
-function UIMap:render() 
-	
+function UIMap:render()
+
 	self:suspendStencil()
     self:clampStencilRectToParent(0, 0, self:getWidth(), self:getHeight() )
 
@@ -104,39 +104,38 @@ function UIMap:render()
 
 	-- Отрисовка других игроков
 	if isMapDrawAllPlayers() then
-		local players = getOnlinePlayers()
+        local players = getOnlinePlayers()
+        if players ~= nil then
+            for i=1,players:size() do
+                local player = players:get(i-1)
+                if player ~= self.localPlayer then
+                    local x = self.mapAPI:worldToUIX(player:getX(), player:getY());
+                    local y = self.mapAPI:worldToUIY(player:getX(), player:getY());
 
-		if players ~= nil then
-			for i=1,players:size() do
-				local player = players:get(i-1)
-				if player ~= self.localPlayer then
-					local x = self.mapAPI:worldToUIX(player:getX(), player:getY());
-					local y = self.mapAPI:worldToUIY(player:getX(), player:getY());
+                    local size = 125 / self.mapAPI:getWorldScale()
+                    size = clamp(size, 2, 5)
 
-					local size = 125 / self.mapAPI:getWorldScale()
-					size = clamp(size, 2, 5)
-
-					self:drawRect(x - size, y - size, size * 2 - 1, size * 2 - 1, self.playerColor.a, self.playerColor.r, self.playerColor.g, self.playerColor.b);
-					self:drawRectBorder(x - size, y - size, size * 2, size * 2, 1, 0, 0, 0);
-					if self.mapAPI:getWorldScale() > 1 then
-						self:drawTextCentre(player:getUsername(), x + 1, y + 6, 0.0, 0.0, 0.0, 1.0, UIFont.Small);
-						self:drawTextCentre(player:getUsername(), x, y + 5, 1.0, 1.0, 1.0, 1.0, UIFont.Small);
-					end
-				end
-			end
-		end
-	end
+                    self:drawRect(x - size, y - size, size * 2 - 1, size * 2 - 1, self.playerColor.a, self.playerColor.r, self.playerColor.g, self.playerColor.b);
+                    self:drawRectBorder(x - size, y - size, size * 2, size * 2, 1, 0, 0, 0);
+                    if self.mapAPI:getWorldScale() > 1 then
+                        self:drawTextCentre(player:getUsername(), x + 1, y + 6, 0.0, 0.0, 0.0, 1.0, UIFont.Small);
+                        self:drawTextCentre(player:getUsername(), x, y + 5, 1.0, 1.0, 1.0, 1.0, UIFont.Small);
+                    end
+                end
+            end
+        end
+    end
 
 	-- Отрисовка локального игрока
 	if isMapDrawLocalPlayer() then
 		local player = self.localPlayer;
-		
+
 		local x = self.mapAPI:worldToUIX(player:getX(), player:getY());
 		local y = self.mapAPI:worldToUIY(player:getX(), player:getY());
-	
+
 		local size = 125 / self.mapAPI:getWorldScale()
 		size = clamp(size, 2, 5)
-	
+
 		self:drawRect(x - size, y - size, size * 2 - 1, size * 2 - 1, self.localPlayerColor.a, self.localPlayerColor.r, self.localPlayerColor.g, self.localPlayerColor.b);
 		self:drawRectBorder(x - size, y - size, size * 2, size * 2, 1, 0, 0, 0);
 		if self.mapAPI:getWorldScale() > 1 then
@@ -231,7 +230,7 @@ end
 --*********************************************************
 --* ПКМ - поднятие клавиши
 --*********************************************************
-function UIMap:onRightMouseUp(x, y) 
+function UIMap:onRightMouseUp(x, y)
 	local context = ISContextMenu.get(0, x + self:getAbsoluteX(), y + self:getAbsoluteY())
 
 	local player = self.localPlayer;
@@ -251,7 +250,7 @@ end
 --*********************************************************
 --* Безопасная телепортация
 --*********************************************************
-function UIMap:onTeleport(x, y) 
+function UIMap:onTeleport(x, y)
 	if isPlayerInSafeTeleported() then
 		return
 	end
