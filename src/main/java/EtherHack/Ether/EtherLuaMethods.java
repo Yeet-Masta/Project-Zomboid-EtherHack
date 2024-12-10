@@ -1186,6 +1186,41 @@ public class EtherLuaMethods {
       }
    }
 
+   @LuaMethod(name = "setZombieKills", global = true)
+   public static void setZombieKills(int kills) {
+      IsoPlayer player = IsoPlayer.getInstance();
+      if (player != null) {
+         player.setZombieKills(kills);
+      }
+   }
+
+   @LuaMethod(name = "setHoursAlive", global = true)
+   public static void setHoursAlive(int hours) {
+      IsoPlayer player = IsoPlayer.getInstance();
+      if (player != null) {
+         // Convert hours to game time units (1 hour = 1.0f)
+         player.setHoursSurvived(hours);
+      }
+   }
+
+   @LuaMethod(name = "getZombieKills", global = true)
+   public static int getZombieKills() {
+      IsoPlayer player = IsoPlayer.getInstance();
+      if (player != null) {
+         return player.getZombieKills();
+      }
+      return 0;
+   }
+
+   @LuaMethod(name = "getHoursAlive", global = true)
+   public static int getHoursAlive() {
+      IsoPlayer player = IsoPlayer.getInstance();
+      if (player != null) {
+         return (int) player.getHoursSurvived();
+      }
+      return 0;
+   }
+
    @LuaMethod(
       name = "getAccentUIColor",
       global = true

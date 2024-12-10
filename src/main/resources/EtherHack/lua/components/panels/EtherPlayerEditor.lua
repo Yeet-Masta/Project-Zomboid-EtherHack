@@ -32,7 +32,7 @@ end
 function EtherPlayerEditor:render()
     ISPanel.render(self);
 
-    if self.localPlayer == nil then 
+    if self.localPlayer == nil then
         self:drawTextCentre(self.workInGameText, self.width / 2, self.height / 2, 1.0, 1.0, 1.0, 1.0, UIFont.Large)
     end;
 
@@ -75,15 +75,24 @@ function EtherPlayerEditor:createChildren()
 	self.avatarPanel:setIsometric(false)
 	self:addChild(self.avatarPanel)
 
-
     self:addLabel(getText("IGUI_PlayerStats_Username") .. " ".. self.localPlayer:getUsername(), 90, 10);
     self:addLabel(getText("IGUI_PlayerStats_DisplayName").. " ".. self.localPlayer:getDisplayName(), 90, 30);
     self:addLabel(getText("UI_characreation_forename").. ": " .. self.localPlayer:getDescriptor():getForename(), 90, 50);
     self:addLabel(getText("UI_characreation_surname").. ": " .. self.localPlayer:getDescriptor():getSurname(), 90, 70);
     self:addLabel(getText("IGUI_PlayerStats_Profession").. " ".. ProfessionFactory.getProfession(self.localPlayer:getDescriptor():getProfession()):getName(), 90, 90);
+    -- self:addLabel(getText("IGUI_char_Survived_For").. ": " .. self.localPlayer:getTimeSurvived(), 90, 110);
     self:addLabel(getText("IGUI_char_Survived_For").. ": " .. self.localPlayer:getTimeSurvived(), 90, 110);
+    local editTimeBtn = ISButton:new(250, 110, 60, 18, getTranslate("UI_PlayerEditor_EditStats"), self, self.onEditTimeButton)
+    editTimeBtn:initialise()
+    editTimeBtn:instantiate()
+    self:addChild(editTimeBtn)
+    -- self:addLabel(getText("IGUI_char_Zombies_Killed").. ": " .. tostring(self.localPlayer:getZombieKills()), 90, 130);
     self:addLabel(getText("IGUI_char_Zombies_Killed").. ": " .. tostring(self.localPlayer:getZombieKills()), 90, 130);
-    
+    local editKillsBtn = ISButton:new(250, 130, 60, 18, getTranslate("UI_PlayerEditor_EditStats"), self, self.onEditKillsButton)
+    editKillsBtn:initialise()
+    editKillsBtn:instantiate()
+    self:addChild(editKillsBtn)
+
     local chatMuted = getText("Sandbox_ThumpNoChasing_option1");
     if not self.localPlayer:isAllChatMuted() then
         chatMuted = getText("Sandbox_ThumpNoChasing_option2")
@@ -107,6 +116,50 @@ function EtherPlayerEditor:createChildren()
     self.skillPanel:initialise();
     self.skillPanel.parent = self;
     self:addChild(self.skillPanel);
+end
+
+function EtherPlayerEditor:updateLabels()
+    -- Remove all existing labels and buttons
+    self:removeChild(self.avatarPanel)
+    for _,child in pairs(self:getChildren()) do
+        self:removeChild(child)
+    end
+    -- Recreate all elements
+    self:createChildren()
+end
+
+function EtherPlayerEditor:onEditTimeButton()
+    local modal = ISTextBox:new(0, 0, 280, 180, getTranslate("UI_PlayerEditor_EditHoursTitle"),
+        tostring(getHoursAlive()),
+        self,
+        function(target, button)
+            if button.internal == "OK" then
+                local value = tonumber(button.parent.entry:getText())
+                if value then
+                    setHoursAlive(value)
+                    self:updateLabels()
+                end
+            end
+        end)
+    modal:initialise()
+    modal:addToUIManager()
+end
+
+function EtherPlayerEditor:onEditKillsButton()
+    local modal = ISTextBox:new(0, 0, 280, 180, getTranslate("UI_PlayerEditor_EditKillsTitle"),
+        tostring(getZombieKills()),
+        self,
+        function(target, button)
+            if button.internal == "OK" then
+                local value = tonumber(button.parent.entry:getText())
+                if value then
+                    setZombieKills(value)
+                    self:updateLabels()
+                end
+            end
+        end)
+    modal:initialise()
+    modal:addToUIManager()
 end
 
 --*********************************************************
