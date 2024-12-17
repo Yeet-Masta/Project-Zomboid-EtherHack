@@ -8,6 +8,9 @@
   <img src="https://img.shields.io/github/issues/Yeet-Masta/Project-Zomboid-EtherHack" alt="GitHub issues">
 </p>
 
+## Upgrade!!!
+I'm currecntly converting all the code to kotlin. I want to do this for several reasons. The code is much cleaner, and personally, I like kotlin better. so if this repo doesn't get updated in a while. you know why :)
+
 ## NOTICE!!!
 There are repo's going around pretending to be EtherHack or just a PZ cheat (https://github.com/ayhantunay/Project-Zomboid-Cheat) and I HIGHLY ADVISE YOU DON"T DOWNLOAD THESE!!! They are asking you to download completely arbitrary DLL files and disable your fucking anti-virus!!! Please for the love of god, don't download this shit. Use your head!!!
 
